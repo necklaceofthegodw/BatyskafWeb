@@ -348,9 +348,20 @@ export class World {
         this.scene,
       ),
       this.oasis,
-      this.mat('plinth', '#a6a487'),
+      this.mat('plinth', '#9a783d'),
       v(28, 1.05, 10),
     );
+    const plinthMaterial = pedestal.material as StandardMaterial;
+    plinthMaterial.specularColor = Color3.Black();
+    plinthMaterial.disableLighting = true;
+    plinthMaterial.emissiveColor = color('#d8b96c');
+    const plinthNormals = pedestal.getVerticesData('normal')!;
+    const plinthColors: number[] = [];
+    for (let i = 0; i < plinthNormals.length; i += 3) {
+      const shade = 0.78 + Math.max(0, plinthNormals[i + 1]) * 0.22;
+      plinthColors.push(shade, shade, shade, 1);
+    }
+    pedestal.setVerticesData('color', plinthColors);
     pedestal.receiveShadows = true;
     const ring = this.attach(
       MeshBuilder.CreateTorus(

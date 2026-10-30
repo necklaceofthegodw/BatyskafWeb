@@ -172,7 +172,7 @@ export class Interface {
       this.overlay.innerHTML = `<main class="main-menu" data-version="0.11"><h1>BATYSKAF</h1><div class="menu-submarine">${submarineArt}</div><button class="submarine-start" data-action="play" aria-label="Rozpocznij wyprawę">${startShape}<span>Graj</span></button><nav class="menu-links" aria-label="Menu gry"><button data-action="settings">Ustawienia</button><button data-action="help">Jak grać</button></nav></main>`;
     } else if (g.phase === 'paused') {
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">CHWILA ODDECHU</span><h2>Wyprawa wstrzymana</h2><p>${esc(g.level.name)} · Energia ${Math.ceil((g.battery / g.stats.battery) * 100)}%</p><div class="stack">${this.button('resume', 'Wracaj do głębin', true)}${this.button('settings', 'Ustawienia')}${this.button('help', 'Sterowanie')}${g.previousPhase === 'oasis' ? this.button('launch', 'Zanurz się') + this.button('shop', 'Ulepszenia') : this.button('base', 'Wróć do oazy')}</div><button class="text-button" data-action="journal">Pobierz historię decyzji</button>`,
+        `<span class="eyebrow">CHWILA ODDECHU</span><h2>Wyprawa wstrzymana</h2><p>${esc(g.level.name)} · Energia ${Math.ceil((g.battery / g.stats.battery) * 100)}%</p><div class="stack">${this.button('resume', 'Wracaj do głębin', true)}${this.button('settings', 'Ustawienia')}${this.button('help', 'Sterowanie')}${g.previousPhase === 'oasis' ? this.button('launch', 'Zanurz się') + this.button('shop', 'Ulepszenia') : this.button('base', 'Wróć do oazy')}</div>`,
       );
     } else if (g.phase === 'shop') {
       this.overlay.innerHTML = frame(
@@ -200,16 +200,16 @@ export class Interface {
       );
     } else if (g.phase === 'return') {
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">${g.returnReason === 'battery' ? 'SYSTEM RATUNKOWY' : 'POWRÓT DO BAZY'}</span><h2>Wracamy na powierzchnię.</h2><p>${g.completed ? `Poziom ${g.completedLevel} ukończony! Nagroda: +${g.completionReward} ◈. ` : g.returnReason === 'battery' ? 'Energia się wyczerpała. ' : ''}Pieniądze i ulepszenia zostają z Tobą.</p><div class="return-stats"><div><strong>◈ ${g.runLoot}</strong><small>ZEBRANY ŁUP</small></div><div><strong>${g.runChoices}</strong><small>PODJĘTYCH WYBORÓW</small></div></div><div class="loading-line"><i></i></div>`,
+        `<span class="eyebrow">${g.returnReason === 'battery' ? 'SYSTEM RATUNKOWY' : 'POWRÓT DO BAZY'}</span><h2>Wracamy na powierzchnię.</h2><p>${g.completed ? `Poziom ${g.completedLevel} ukończony! Nagroda: +${g.completionReward} ◈. ` : g.returnReason === 'battery' ? 'Energia się wyczerpała. ' : ''}Pieniądze i ulepszenia zostają z Tobą.</p><div class="return-stats"><div><strong>◈ ${g.runLoot}</strong><small>ZEBRANY ŁUP</small></div></div><div class="loading-line"><i></i></div>`,
         'return-panel',
       );
     } else if (g.phase === 'stageComplete') {
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">POWRÓT NA POWIERZCHNIĘ</span><h2>Poziom ${g.completedLevel} ukończony!</h2><p>Nagroda za ukończenie: +${g.completionReward} ◈.</p><p>Odblokowano poziom ${g.save.level + 1}: ${esc(g.level.name)}. Czeka na Ciebie ${g.layout.fragments.length} fragmentów i fragment końcowy.</p><div class="return-stats"><div><strong>◈ ${g.runLoot}</strong><small>ZEBRANY ŁUP</small></div><div><strong>${g.runChoices}</strong><small>PODJĘTYCH WYBORÓW</small></div></div><div class="stack">${this.button('launch', `Rozpocznij poziom ${g.save.level + 1}`, true)}${this.button('play', 'Zostań w oazie')}</div>`,
+        `<span class="eyebrow">POWRÓT NA POWIERZCHNIĘ</span><h2>Poziom ${g.completedLevel} ukończony!</h2><p>Nagroda za ukończenie: +${g.completionReward} ◈.</p><p>Odblokowano poziom ${g.save.level + 1}: ${esc(g.level.name)}. Czeka na Ciebie ${g.layout.fragments.length} fragmentów i fragment końcowy.</p><div class="return-stats"><div><strong>◈ ${g.runLoot}</strong><small>ZEBRANY ŁUP</small></div></div><div class="stack">${this.button('launch', `Rozpocznij poziom ${g.save.level + 1}`, true)}${this.button('play', 'Zostań w oazie')}</div>`,
       );
     } else if (g.phase === 'won') {
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">EKSPEDYCJA ZAKOŃCZONA</span><h2>Gratulacje, wygrywasz!</h2><p>Wszystkie pięć etapów za Tobą.${g.completionReward ? ` Nagroda za ukończenie: +${g.completionReward} ◈.` : ''} Każdy wybór był częścią tej podróży.</p><div class="return-stats"><div><strong>${g.save.choices}</strong><small>WYBORÓW</small></div><div><strong>${Math.round(g.save.bestDepth)} m</strong><small>NAJWIĘKSZA GŁĘBOKOŚĆ</small></div></div><div class="stack">${this.button('rest', 'Odpocznij w oazie', true)}${this.button('new', 'Nowa ekspedycja')}</div>`,
+        `<span class="eyebrow">EKSPEDYCJA ZAKOŃCZONA</span><h2>Gratulacje, wygrywasz!</h2><p>Wszystkie pięć etapów za Tobą.${g.completionReward ? ` Nagroda za ukończenie: +${g.completionReward} ◈.` : ''} Każdy wybór był częścią tej podróży.</p><div class="return-stats"><div><strong>${Math.round(g.save.bestDepth)} m</strong><small>NAJWIĘKSZA GŁĘBOKOŚĆ</small></div></div><div class="stack">${this.button('rest', 'Odpocznij w oazie', true)}${this.button('new', 'Nowa ekspedycja')}</div>`,
       );
     } else this.overlay.innerHTML = '';
     if (this.overlay.innerHTML) this.action('release');
