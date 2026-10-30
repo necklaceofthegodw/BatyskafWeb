@@ -225,15 +225,27 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.pause-button {
+.depth-record {
   position: absolute;
   right: 28px;
   top: 26px;
-  width: 48px;
-  height: 48px;
+  min-width: 148px;
+  padding: 8px 14px;
+  display: grid;
+  gap: 3px;
+  text-align: center;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
   font-size: 22px;
   border-width: 4px;
   border-radius: 14px;
+}
+.depth-record small {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.depth-record strong {
+  white-space: nowrap;
 }
 .stage {
   position: absolute;
@@ -288,10 +300,14 @@ select:focus-visible {
   height: 39px;
   margin-left: -4px;
   margin-right: 5px;
-  font-size: 32px;
-  font-weight: bold;
+  line-height: 1;
   box-shadow: inset 0 0 0 2px #ffe894;
   flex-shrink: 0;
+}
+.battery-icon svg {
+  display: block;
+  width: 25px;
+  height: 25px;
 }
 .battery-track {
   position: relative;
@@ -971,11 +987,12 @@ kbd {
     height: 29px;
     font-size: 20px;
   }
-  .pause-button {
+  .depth-record {
     top: 18px;
     right: 16px;
-    width: 42px;
-    height: 42px;
+    min-width: 108px;
+    padding: 6px 8px;
+    font-size: 18px;
   }
   .stage {
     top: 22px;

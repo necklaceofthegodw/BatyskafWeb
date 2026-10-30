@@ -32,13 +32,13 @@ export class Interface {
   ) {
     root.innerHTML = `<div id="screen-flash"></div><div id="hud" hidden>
       <div class="coins brass"><span class="coin-symbol" aria-hidden="true">$</span><strong><span id="money">0</span> $</strong></div>
-      <button data-action="pause" class="pause-button brass" aria-label="Pauza">Ⅱ</button>
+      <div class="depth-record brass" aria-label="Największa osiągnięta głębokość"><small>MAX GŁĘBOKOŚĆ</small><strong><span id="best-depth">0</span> m</strong></div>
       <div class="stage"><span id="stage-number">Poziom 1 / 5</span><div class="stage-track"><i id="stage-progress"></i></div></div>
       <div class="crosshair" id="crosshair"><i></i><i></i><i></i><i></i><span id="target-hint"></span></div>
       <div id="guidance"><span id="guide-arrow">⌃</span><small id="guide-label">Do tunelu</small></div>
       <div class="base-prompt" id="base-prompt"><button data-action="launch" class="button primary">Zanurz się ↓</button><button data-action="shop" class="button secondary">Ulepszenia</button></div>
       <section class="instruments" aria-label="Prędkość i energia">
-        <div class="battery brass" aria-label="Energia"><span class="battery-icon" aria-hidden="true">ϟ</span><div class="battery-track"><i id="battery-bar"></i><strong id="battery-number">100%</strong></div></div>
+        <div class="battery brass" aria-label="Energia"><span class="battery-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M14 2 5 13h6l-1 9 9-12h-6z" fill="currentColor"/></svg></span><div class="battery-track"><i id="battery-bar"></i><strong id="battery-number">100%</strong></div></div>
         <div class="dial">${speedDial}<div class="speed-readout"><strong id="speed">0</strong><small>m/s</small></div></div>
         <span id="effect-label" hidden></span>
       </section>
@@ -237,6 +237,7 @@ export class Interface {
     const battery = clamp(g.battery / g.stats.battery, 0, 1);
     text('money', g.save.money.toLocaleString('pl-PL'));
     text('depth', Math.round(g.depth).toLocaleString('pl-PL'));
+    text('best-depth', Math.round(g.save.bestDepth).toLocaleString('pl-PL'));
     text('speed', g.speed.toFixed(1));
     text('battery-number', `${Math.ceil(battery * 100)}%`);
     text('stage-number', `Poziom ${g.save.level + 1} / 5`);
