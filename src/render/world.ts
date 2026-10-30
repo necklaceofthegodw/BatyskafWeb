@@ -719,10 +719,13 @@ export class World {
                 : `marine-${e.kind}`;
     this.instantiate(model, root);
     if (e.kind === 'power') {
-      root.scaling.setAll(1.35);
-      const label = this.label(upgradeInfo[upgrades[e.variant % 5]].name, '#e4f7eb', 3, 0.7);
+      // Face the incoming tunnel, including sloping and curved sections.
+      // Keep the open ring and its three-dimensional upgrade visible together.
+      root.rotationQuaternion = look(e.forward);
+      root.scaling.setAll(1.8);
+      const label = this.label(upgradeInfo[upgrades[e.variant % 5]].name, '#e4f7eb', 2.8, 0.6);
       label.parent = root;
-      label.position.y = 1.65;
+      label.position.y = 1.55;
     }
     if (e.kind === 'disc') {
       root.rotationQuaternion = look(e.forward);
@@ -877,7 +880,7 @@ export class World {
       if (e.kind === 'loot') root.rotation.y += dt * 0.55;
       if (e.kind === 'power') {
         root.position.y += Math.sin(this.time * 2.2) * 0.2;
-        root.rotation.y = Math.sin(this.time * 0.6) * 0.15;
+        // Preserve alignment with the tunnel instead of rotating the choice edge-on.
       }
       if (e.kind === 'eel') root.rotation.y = Math.sin(e.age * 0.7) * 0.5;
       if (e.kind === 'meteor') {
