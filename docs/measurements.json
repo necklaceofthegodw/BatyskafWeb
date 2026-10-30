@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-28T14:04:34.254Z",
+  "browser": "156.0.8078.49",
+  "viewport": "1440x900",
+  "startupMs": 1379,
+  "production": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002504) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "encodedBytes": 2361297,
+    "requests": 75,
+    "diagnosticsPresent": false
+  },
+  "views": [
+    {
+      "view": "oasis",
+      "quality": "high",
+      "phase": "paused",
+      "level": 0,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0,
+      "position": {
+        "x": 16,
+        "y": 2.8,
+        "z": -17
+      },
+      "fps": 60,
+      "drawCalls": 63,
+      "activeTriangles": 46999,
+      "meshes": 440,
+      "activeMeshes": 216,
+      "vertices": 126216,
+      "effects": 0,
+      "loadErrors": []
+    },
+    {
+      "view": "oasis",
+      "quality": "low",
+      "phase": "paused",
+      "level": 0,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0,
+      "position": {
+        "x": 16,
+        "y": 2.8,
+        "z": -17
+      },
+      "fps": 60,
+      "drawCalls": 54,
+      "activeTriangles": 46999,
+      "meshes": 440,
+      "activeMeshes": 216,
+      "vertices": 126216,
+      "effects": 0,
+      "loadErrors": []
+    },
+    {
+      "view": "stage-1",
+      "quality": "high",
+      "phase": "paused",
+      "level": 0,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0.32680302871290257,
+      "position": {
+        "x": -12.537862290452882,
+        "y": -49.03268200029662,
+        "z": 152.931023890784
+      },
+      "fps": 60,
+      "drawCalls": 117,
+      "activeTriangles": 54896,
+      "meshes": 440,
+      "activeMeshes": 112,
+      "vertices": 126216,
+      "effects": 0,
+      "loadErrors": []
+    },
+    {
+      "view": "stage-1",
+      "quality": "low",
+      "phase": "paused",
+      "level": 0,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0.32680302871290257,
+      "position": {
+        "x": -12.537862290452882,
+        "y": -49.03268200029662,
+        "z": 152.931023890784
+      },
+      "fps": 60,
+      "drawCalls": 111,
+      "activeTriangles": 54896,
+      "meshes": 440,
+      "activeMeshes": 112,
+      "vertices": 126216,
+      "effects": 0,
+      "loadErrors": []
+    },
+    {
+      "view": "stage-5",
+      "quality": "high",
+      "phase": "paused",
+      "level": 4,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0.1096347739780444,
+      "position": {
+        "x": 21.07460501921571,
+        "y": -78.15395016341422,
+        "z": 160.38487540853555
+      },
+      "fps": 60,
+      "drawCalls": 68,
+      "activeTriangles": 31893,
+      "meshes": 1017,
+      "activeMeshes": 63,
+      "vertices": 288866,
+      "effects": 0,
+      "loadErrors": []
+    },
+    {
+      "view": "stage-5",
+      "quality": "low",
+      "phase": "paused",
+      "level": 4,
+      "battery": 40,
+      "money": 0,
+      "choices": 0,
+      "progress": 0.1096347739780444,
+      "position": {
+        "x": 21.07460501921571,
+        "y": -78.15395016341422,
+        "z": 160.38487540853555
+      },
+      "fps": 60,
+      "drawCalls": 62,
+      "activeTriangles": 31893,
+      "meshes": 1017,
+      "activeMeshes": 63,
+      "vertices": 288866,
+      "effects": 0,
+      "loadErrors": []
+    }
+  ],
+  "errors": [],
+  "external": []
+}

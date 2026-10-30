@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.local/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.sites-checkout/
+.site-artifacts/
+__pycache__/
+*.pyc

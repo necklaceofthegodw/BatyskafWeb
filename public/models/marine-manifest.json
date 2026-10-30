@@ -1,0 +1,156 @@
+{
+  "collection": "Marine Expedition 0.4",
+  "assets": [
+    {
+      "name": "submarine",
+      "triangles": 4576,
+      "bytes": 296356
+    },
+    {
+      "name": "fish",
+      "triangles": 1660,
+      "bytes": 115904
+    },
+    {
+      "name": "marine-eel",
+      "triangles": 1016,
+      "bytes": 71704
+    },
+    {
+      "name": "marine-monster",
+      "triangles": 2144,
+      "bytes": 144160
+    },
+    {
+      "name": "marine-coral",
+      "triangles": 1648,
+      "bytes": 108676
+    },
+    {
+      "name": "marine-loot-0",
+      "triangles": 120,
+      "bytes": 9932
+    },
+    {
+      "name": "marine-loot-1",
+      "triangles": 120,
+      "bytes": 9932
+    },
+    {
+      "name": "marine-loot-2",
+      "triangles": 120,
+      "bytes": 9932
+    },
+    {
+      "name": "marine-loot-3",
+      "triangles": 118,
+      "bytes": 10100
+    },
+    {
+      "name": "marine-loot-4",
+      "triangles": 118,
+      "bytes": 10100
+    },
+    {
+      "name": "marine-loot-5",
+      "triangles": 118,
+      "bytes": 10100
+    },
+    {
+      "name": "marine-loot-6",
+      "triangles": 408,
+      "bytes": 28524
+    },
+    {
+      "name": "marine-loot-7",
+      "triangles": 118,
+      "bytes": 10100
+    },
+    {
+      "name": "marine-power-0",
+      "triangles": 664,
+      "bytes": 46948
+    },
+    {
+      "name": "marine-power-1",
+      "triangles": 664,
+      "bytes": 46948
+    },
+    {
+      "name": "marine-power-2",
+      "triangles": 704,
+      "bytes": 49668
+    },
+    {
+      "name": "marine-power-3",
+      "triangles": 636,
+      "bytes": 44416
+    },
+    {
+      "name": "marine-power-4",
+      "triangles": 1184,
+      "bytes": 75928
+    },
+    {
+      "name": "marine-meteor-0",
+      "triangles": 180,
+      "bytes": 14716
+    },
+    {
+      "name": "marine-meteor-1",
+      "triangles": 180,
+      "bytes": 14716
+    },
+    {
+      "name": "marine-vent",
+      "triangles": 708,
+      "bytes": 43784
+    },
+    {
+      "name": "marine-gate",
+      "triangles": 1392,
+      "bytes": 90848
+    },
+    {
+      "name": "marine-shutter",
+      "triangles": 128,
+      "bytes": 8332
+    },
+    {
+      "name": "marine-propeller",
+      "triangles": 140,
+      "bytes": 11536
+    },
+    {
+      "name": "marine-projectile",
+      "triangles": 264,
+      "bytes": 19260
+    },
+    {
+      "name": "marine-projectile-enemy",
+      "triangles": 264,
+      "bytes": 19272
+    },
+    {
+      "name": "marine-kelp",
+      "triangles": 600,
+      "bytes": 38764
+    },
+    {
+      "name": "marine-ruin",
+      "triangles": 176,
+      "bytes": 11792
+    },
+    {
+      "name": "marine-crystal",
+      "triangles": 162,
+      "bytes": 13504
+    },
+    {
+      "name": "marine-rock",
+      "triangles": 198,
+      "bytes": 16280
+    }
+  ],
+  "totalBytes": 1402232
+}
