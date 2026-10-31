@@ -44,7 +44,7 @@ test('five finite levels return to the surface, unlock the next level, and end i
     expect(before.level).toBe(level);
     expect(before.fragments).toBe([4, 6, 8, 10, 12][level]);
     expect(before.endings).toBe(1);
-    await expect(page.locator('#pair-number')).toHaveText('FRAGMENT KOŃCOWY');
+    await expect(page.locator('#pair-number')).toHaveText('ZBIERZ DIAMENT');
     await page.keyboard.down('KeyW');
     await expect
       .poll(() =>
@@ -89,6 +89,16 @@ test('five finite levels return to the surface, unlock the next level, and end i
   }
   await expect(page.getByRole('heading', { name: 'Gratulacje, wygrywasz!' })).toBeVisible();
   await page.screenshot({ path: '.local/victory.png' });
+  const progress = () => page.evaluate(() => {
+    const { money, upgrades, level, won } = (window as any).__BATYSKAF_TEST__.game.save;
+    return { money, upgrades, level, won };
+  });
+  const victory = await progress();
+  await page.getByRole('button', { name: /Graj dalej/ }).click();
+  await expect(page.getByRole('button', { name: 'Ulepszenia', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: /Zanurz się/ }).click();
+  expect(await page.evaluate(() => (window as any).__BATYSKAF_TEST__.game.phase)).toBe('dive');
+  expect(await progress()).toEqual(victory);
   // A fresh page is a new campaign, even after victory.
   await page.reload();
   await page.getByRole('button', { name: /Rozpocznij wyprawę/ }).click();

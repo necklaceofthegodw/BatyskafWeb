@@ -66,6 +66,8 @@ export function lootTier(depth: number) {
 export function upgradeValues(type: Upgrade) {
   return source.upgrades.find((u) => u.UpgradeType === type)!;
 }
+export const sonarRanges = [4, 6, 8, 11, 16] as const;
+
 export function getStats(levels: Record<Upgrade, number>) {
   const val = (type: Upgrade) => upgradeValues(type).Value[levels[type]];
   return {
@@ -73,7 +75,7 @@ export function getStats(levels: Record<Upgrade, number>) {
     acceleration: val('Acceleration') * 0.002,
     drag: 0.18 + val('Aerodynamics') * 0.0008,
     battery: val('Battery') / 3,
-    sonar: val('Sonar') * 0.008,
+    sonar: sonarRanges[levels.Sonar],
   };
 }
 export interface Settings {

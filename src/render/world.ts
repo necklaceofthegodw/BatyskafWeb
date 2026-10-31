@@ -507,7 +507,13 @@ export class World {
       m.isPickable = false;
       if (m.material instanceof PBRMaterial) {
         m.material.metallic = name === 'submarine' ? 0.3 : 0;
-        m.material.roughness = name === 'submarine' ? 0.45 : 0.95;
+        m.material.roughness =
+          name.startsWith('marine-loot-') && name !== 'marine-loot-0'
+            ? 0.38
+            : name === 'submarine'
+              ? 0.45
+              : 0.95;
+        if (name === 'marine-loot-2') m.material.metallic = 0.55;
       }
     }
     return true;
@@ -933,9 +939,12 @@ export class World {
     const count = Math.min(this.game.cargo.length, 14),
       dir = direction(this.game.yaw, this.game.pitch);
     for (let i = 0; i < Math.max(this.cargo.length, count); i++) {
-      if (!this.cargo[i]) {
+      const variant = this.game.cargo[i];
+      if (i < count && (!this.cargo[i] || this.cargo[i].metadata?.variant !== variant)) {
+        this.cargo[i]?.dispose();
         this.cargo[i] = new TransformNode('cargo', this.scene);
-        this.instantiate('marine-loot-0', this.cargo[i]);
+        this.cargo[i].metadata = { variant };
+        this.instantiate(`marine-loot-${variant}`, this.cargo[i]);
         this.cargo[i].scaling.setAll(0.45);
       }
       const m = this.cargo[i];

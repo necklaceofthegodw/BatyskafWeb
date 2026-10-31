@@ -28,43 +28,43 @@
     },
     {
       "name": "marine-loot-0",
-      "triangles": 120,
-      "bytes": 9932
+      "triangles": 72,
+      "bytes": 8064
     },
     {
       "name": "marine-loot-1",
-      "triangles": 120,
-      "bytes": 9932
+      "triangles": 672,
+      "bytes": 42156
     },
     {
       "name": "marine-loot-2",
-      "triangles": 120,
-      "bytes": 9932
+      "triangles": 72,
+      "bytes": 8064
     },
     {
       "name": "marine-loot-3",
-      "triangles": 118,
-      "bytes": 10100
+      "triangles": 272,
+      "bytes": 19432
     },
     {
       "name": "marine-loot-4",
-      "triangles": 118,
-      "bytes": 10100
+      "triangles": 288,
+      "bytes": 28792
     },
     {
       "name": "marine-loot-5",
-      "triangles": 118,
-      "bytes": 10100
+      "triangles": 40,
+      "bytes": 4416
     },
     {
       "name": "marine-loot-6",
-      "triangles": 408,
-      "bytes": 28524
+      "triangles": 288,
+      "bytes": 28792
     },
     {
       "name": "marine-loot-7",
-      "triangles": 118,
-      "bytes": 10100
+      "triangles": 3360,
+      "bytes": 200068
     },
     {
       "name": "marine-power-0",
@@ -152,5 +152,5 @@
       "bytes": 16280
     }
   ],
-  "totalBytes": 1402232
+  "totalBytes": 1643296
 }

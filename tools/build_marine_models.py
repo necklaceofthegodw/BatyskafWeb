@@ -161,22 +161,84 @@ def creatures():
         for p in [top,fork]:m.ball(p,(.17,.21,.17),'#ffceaf',8,5)
     m.ball((0,-1,0),(1.5,.33,1.3),'#567e84',10,5); m.save('marine-coral')
 
-def props():
+def resource_models():
+    import random
+
+    def rock(model, seed, scale, palette, vein=False):
+        rng = random.Random(seed)
+        rings = []
+        for level, width in [(0.72, .54), (.28, 1), (-.12, .98), (-.61, .72)]:
+            ring = []
+            for i in range(9):
+                a = TAU * (i + rng.uniform(-.19,.19)) / 9
+                r = width * rng.uniform(.81,1.12)
+                ring.append((scale[0]*r*math.cos(a), scale[1]*(level+rng.uniform(-.2,.2)), scale[2]*r*math.sin(a)))
+            rings.append(ring)
+        for i in range(9):
+            j = (i+1)%9
+            model.tri((.08,scale[1]*.96,-.06),rings[0][j],rings[0][i],rng.choice(palette))
+            model.tri((0,-scale[1]*.88,0),rings[-1][i],rings[-1][j],rng.choice(palette))
+            for k in range(3):
+                a,b,c,d = rings[k][i],rings[k][j],rings[k+1][j],rings[k+1][i]
+                model.tri(a,b,d,rng.choice(palette))
+                model.tri(b,c,d,rng.choice(palette))
+                if vein and (k==1 or i%3==0):
+                    model.rod(b,d,.052,.032,'#16e2d5',5)
+                    model.rod(mul(add(b,d),.5),a,.038,.012,'#57eee5',5)
+
     for variant in range(8):
-        m=Model(); c=['#9cae9b','#aaaeb6','#b5d7d9','#75a9d7','#cce3eb','#89e4e0','#f7dfb2','#6eddac'][variant]
-        if variant<3:
-            m.box((0,0,0),(.9,.65,.72),c)
-            for x in [-.32,.32]:m.box((x,0,0),(.08,.71,.78),GOLD)
-            m.box((0,.1,.38),(.2,.17,.05),INK)
-            for x in [-.3,.3]:m.ball((x,.24,.4),(.035,.035,.025),LIGHT,6,4)
-        elif variant==6:
-            m.ball((0,-.22,0),(.62,.25,.5),TEAL,10,6); m.ball((0,.15,0),(.36,.36,.36),c,12,8)
-            for i in range(7):
-                a=i*TAU/7;m.rod((0,-.25,0),(math.cos(a)*.57,-.05,math.sin(a)*.46),.025,.025,LIGHT,5)
+        m = Model()
+        if variant in (0,1,2):
+            palettes = [
+                ['#545459','#74716e','#454951','#8a8882'],
+                ['#42474a','#62676a','#737572','#39464b'],
+                ['#9da6ad','#e1e7e9','#bdc6cc','#778591','#f3eee7'],
+            ]
+            rock(m, 31+variant, (.73,.65,.59), palettes[variant], vein=variant==1)
+        elif variant==3:
+            rock(m, 17, (.71,.31,.46), ['#353d4a','#495262','#293846'])
+            for i,(lean,h) in enumerate([(-.58,.78),(-.30,1.06),(-.05,1.28),(.27,1.02),(.56,.81)]):
+                start=(lean*.49,-.04,(i%2)*.17-.08)
+                end=add(start,(lean,h,0))
+                axis=unit(sub(end,start))
+                col=['#1846ae','#225bc9','#204ec2','#3175de','#163f9f'][i]
+                m.rod(start,end,.15,.17,col,5)
+                m.rod(end,add(end,mul(axis,.21)),.17,.008,'#5488ec',5)
+        elif variant==5:
+            n=10
+            def rim(r,y,phase):
+                return [(r*math.cos(TAU*(i+phase)/n),y,r*math.sin(TAU*(i+phase)/n)) for i in range(n)]
+            table,belt=rim(.46,.43,.5),rim(.79,.13,0)
+            for i in range(n):
+                j=(i+1)%n
+                m.tri((0,.43,0),table[j],table[i],'#c9f6ff')
+                m.tri(table[i],belt[j],belt[i],['#78c8eb','#e4fcff','#a2e3f7'][i%3])
+                m.tri(table[i],table[j],belt[j],'#a3dceb')
+                m.tri(belt[i],belt[j],(0,-.65,0),['#478db7','#8bd7f1','#b3effa'][i%3])
         else:
-            m.ball((0,-.35,0),(.5,.2,.46),INK,8,5)
-            m.crystal((0,-.25,0),.32,1.05,c);m.crystal((.32,-.3,.12),.18,.6,c);m.crystal((-.28,-.3,-.1),.2,.7,LIGHT)
+            # Broad bands of nacre across the pearl surface, including the back.
+            n,rows=16,10
+            shades={4:['#ebc9a5','#f3d6b5','#e3bd98'],6:['#f4f2ee','#daebfa','#e9ddf6','#d5eee9'],7:['#15867d','#1ca694','#19796f','#59cbb0']}
+            r=.62
+            def point(i,j):
+                a,b=TAU*(i+.25*(j%2))/n,math.pi*j/rows
+                return (r*math.sin(b)*math.cos(a),r*math.cos(b),r*math.sin(b)*math.sin(a))
+            for j in range(rows):
+                for i in range(n):
+                    palette=shades[variant]
+                    col=palette[int(2+1.8*math.sin(i*TAU/n+j*.66))%len(palette)]
+                    m.quad(point(i,j),point(i+1,j),point(i+1,j+1),point(i,j+1),col)
+            if variant==7:
+                for side in (-1,1):
+                    pts=[]
+                    for k in range(49):
+                        t=k/48; a=t*TAU*1.6; b=.08+t*1.38
+                        pts.append((r*math.sin(b)*math.cos(a),r*math.sin(b)*math.sin(a),side*r*math.cos(b)))
+                    m.path(pts,[.012+.028*math.sin(math.pi*k/48) for k in range(49)],'#f2bd4a')
         m.save('marine-loot-'+str(variant))
+
+def props():
+    resource_models()
     for variant in range(5):
         m=Model(); m.ring((0,0,0),1.05,.10,TEAL,n=24)
         for i in range(8):

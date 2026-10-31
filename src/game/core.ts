@@ -56,6 +56,7 @@ export interface Decision {
   };
 }
 export interface GameEvent {
+  moneyGained?: number;
   type:
     'notice' | 'collect' | 'charge' | 'shot' | 'impact' | 'choice' | 'return' | 'save' | 'level';
   text?: string;
@@ -143,7 +144,7 @@ export class GameCore {
       if (e.type === 'MaxSpeed') stats.speed += e.value * 0.0024;
       if (e.type === 'Acceleration') stats.acceleration += e.value * 0.002;
       if (e.type === 'Aerodynamics') stats.drag += e.value * 0.0008;
-      if (e.type === 'Sonar') stats.sonar += e.value * 0.008;
+      if (e.type === 'Sonar') stats.sonar += (e.value * 0.008) / 2;
     }
     stats.speed = Math.max(4, stats.speed);
     stats.acceleration = Math.max(1, stats.acceleration);
@@ -197,10 +198,7 @@ export class GameCore {
   }
   launch() {
     this.clearLook();
-    if (this.save.won) {
-      this.phase = 'won';
-      return;
-    }
+    if (this.phase === 'won') return;
     this.layout = makeLayout(this.save.level);
     this.resetEntities();
     this.phase = 'dive';
@@ -262,6 +260,10 @@ export class GameCore {
       this.layout.fragments.length,
       near.route.pair * 2 + (near.route.kind === 'connector' ? 2 : 1),
     );
+  }
+  get wrongWay() {
+    if (this.phase !== 'dive' || this.speed < 0.5) return false;
+    return dot(this.velocity, this.nearest(this.position).tangent) < -0.35 * this.speed;
   }
   get inFinish() {
     return this.phase === 'dive' && this.nearest(this.position).route.kind === 'finish';
@@ -581,7 +583,7 @@ export class GameCore {
             this.save.money += value;
             this.runLoot += value;
             this.cargo.push(e.variant);
-            this.emit({ type: 'collect' });
+            this.emit({ type: 'collect', moneyGained: value });
             this.emit({ type: 'save' });
           }
         }
@@ -748,7 +750,7 @@ export class GameCore {
         this.pitch = -0.1;
         this.battery = this.stats.battery;
         this.bullets = [];
-        this.phase = this.save.won ? 'won' : this.completed ? 'stageComplete' : 'oasis';
+        this.phase = this.completed ? (this.save.won ? 'won' : 'stageComplete') : 'oasis';
         this.pair = 0;
         this.layout = makeLayout(this.save.level);
         this.resetEntities();

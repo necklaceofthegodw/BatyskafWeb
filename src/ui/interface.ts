@@ -1,6 +1,13 @@
 import { submarineArt, startShape, speedDial } from './art';
 import { GameCore, type GameEvent } from '../game/core';
-import { upgrades, upgradeInfo, upgradeValues, freshSave, type Upgrade } from '../game/data';
+import {
+  upgrades,
+  upgradeInfo,
+  upgradeValues,
+  freshSave,
+  sonarRanges,
+  type Upgrade,
+} from '../game/data';
 import { direction, sub, norm, dot, clamp } from '../game/math';
 import type { Portal } from '../services/portal';
 import type { Storage } from '../services/storage';
@@ -35,6 +42,7 @@ export class Interface {
       <div class="depth-record brass" aria-label="Największa osiągnięta głębokość"><small>MAX GŁĘBOKOŚĆ</small><strong><span id="best-depth">0</span> m</strong></div>
       <div class="stage"><span id="stage-number">Poziom 1 / 5</span><div class="stage-track"><i id="stage-progress"></i></div></div>
       <div class="crosshair" id="crosshair"><i></i><i></i><i></i><i></i><span id="target-hint"></span></div>
+      <div id="wrong-way" role="status" hidden>Jedziesz w złą stronę!</div>
       <div id="guidance"><span id="guide-arrow">⌃</span><small id="guide-label">Do tunelu</small></div>
       <div class="base-prompt" id="base-prompt"><button data-action="launch" class="button primary">Zanurz się ↓</button><button data-action="shop" class="button secondary">Ulepszenia</button></div>
       <section class="instruments" aria-label="Prędkość i energia">
@@ -141,7 +149,41 @@ export class Interface {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  private flyMoney(amount: number) {
+    const counter = this.hud.querySelector<HTMLElement>('#money')!.getBoundingClientRect();
+    const targetX = counter.left + counter.width / 2;
+    const targetY = counter.top + counter.height / 2;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lane = this.hud.querySelectorAll('.money-gain').length % 3;
+    const startX = reduced ? targetX : innerWidth * 0.5 + [0, -48, 48][lane];
+    const startY = reduced ? counter.bottom + 14 : innerHeight * 0.54;
+    const label = document.createElement('span');
+    label.className = 'money-gain';
+    label.textContent = `+${amount}`;
+    label.setAttribute('aria-hidden', 'true');
+    label.style.left = `${startX}px`;
+    label.style.top = `${startY}px`;
+    this.hud.append(label);
+    const dx = targetX - startX,
+      dy = targetY - startY;
+    const animation = label.animate(
+      reduced
+        ? [{ opacity: 1 }, { opacity: 0 }]
+        : [
+            { transform: 'translate(-50%, -50%) scale(0.8)', opacity: 0 },
+            { transform: 'translate(-50%, -80%) scale(1.15)', opacity: 1, offset: 0.16 },
+            { transform: 'translate(-50%, -95%)', opacity: 1, offset: 0.38, easing: 'ease-in' },
+            {
+              transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.65)`,
+              opacity: 0.25,
+            },
+          ],
+      { duration: reduced ? 650 : 950 },
+    );
+    animation.onfinish = animation.oncancel = () => label.remove();
+  }
   event(e: GameEvent) {
+    if (e.type === 'collect' && e.moneyGained && !this.hud.hidden) this.flyMoney(e.moneyGained);
     if (e.type === 'notice' && e.text)
       this.notices.push({ text: e.text, tone: e.tone || 'info', until: performance.now() + 4300 });
   }
@@ -181,7 +223,8 @@ export class Interface {
             const info = upgradeInfo[type],
               level = g.save.upgrades[type],
               row = upgradeValues(type),
-              cost = row.Cost[level];
+              cost = row.Cost[level],
+              displayedValues = type === 'Sonar' ? sonarRanges : row.Value;
             const names = {
               MaxSpeed: 'Prędkość',
               Acceleration: 'Przyspieszenie',
@@ -193,7 +236,7 @@ export class Interface {
               (type === 'Battery' ? n / 3 : n).toLocaleString('pl-PL', {
                 maximumFractionDigits: 1,
               });
-            return `<article class="upgrade"><div class="upgrade-icon" aria-hidden="true">${info.icon}</div><div class="upgrade-description"><h3>${names[type]}</h3><div class="upgrade-levels" aria-label="Poziom ${level} z 4">${[1, 2, 3, 4].map((l) => `<i class="${level >= l ? 'filled' : ''}"></i>`).join('')}<span>${level}/4</span></div></div><button class="buy-button" data-action="buy:${type}" aria-label="Kup: ${names[type]}, ${cost ?? 0} dolarów" ${level >= 4 || g.save.money < cost ? 'disabled' : ''}>${level >= 4 ? 'Maks.' : cost + ' $'}</button><div class="upgrade-values"><span>${value(row.Value[level])}</span>${level < 4 ? `<span aria-hidden="true">→</span><strong>${value(row.Value[level + 1])}</strong>` : '<small>Maksimum</small>'}</div></article>`;
+            return `<article class="upgrade"><div class="upgrade-icon" aria-hidden="true">${info.icon}</div><div class="upgrade-description"><h3>${names[type]}</h3><div class="upgrade-levels" aria-label="Poziom ${level} z 4">${[1, 2, 3, 4].map((l) => `<i class="${level >= l ? 'filled' : ''}"></i>`).join('')}<span>${level}/4</span></div></div><button class="buy-button" data-action="buy:${type}" aria-label="Kup: ${names[type]}, ${cost ?? 0} dolarów" ${level >= 4 || g.save.money < cost ? 'disabled' : ''}>${level >= 4 ? 'Maks.' : cost + ' $'}</button><div class="upgrade-values"><span>${value(displayedValues[level])}</span>${level < 4 ? `<span aria-hidden="true">→</span><strong>${value(displayedValues[level + 1])}</strong>` : '<small>Maksimum</small>'}</div></article>`;
           })
           .join('')}</div>`,
         'shop',
@@ -209,7 +252,7 @@ export class Interface {
       );
     } else if (g.phase === 'won') {
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">EKSPEDYCJA ZAKOŃCZONA</span><h2>Gratulacje, wygrywasz!</h2><p>Wszystkie pięć etapów za Tobą.${g.completionReward ? ` Nagroda za ukończenie: +${g.completionReward} ◈.` : ''} Każdy wybór był częścią tej podróży.</p><div class="return-stats"><div><strong>${Math.round(g.save.bestDepth)} m</strong><small>NAJWIĘKSZA GŁĘBOKOŚĆ</small></div></div><div class="stack">${this.button('rest', 'Odpocznij w oazie', true)}${this.button('new', 'Nowa ekspedycja')}</div>`,
+        `<span class="eyebrow">EKSPEDYCJA ZAKOŃCZONA</span><h2>Gratulacje, wygrywasz!</h2><p>Wszystkie pięć etapów za Tobą.${g.completionReward ? ` Nagroda za ukończenie: +${g.completionReward} ◈.` : ''} Wróć do oazy i graj dalej na poziomie 5. Zachowujesz pieniądze i ulepszenia.</p><div class="return-stats"><div><strong>${Math.round(g.save.bestDepth)} m</strong><small>NAJWIĘKSZA GŁĘBOKOŚĆ</small></div></div><div class="stack">${this.button('rest', 'Graj dalej', true)}${this.button('new', 'Nowa ekspedycja')}</div>`,
       );
     } else this.overlay.innerHTML = '';
     if (this.overlay.innerHTML) this.action('release');
@@ -231,6 +274,7 @@ export class Interface {
     if (this.toastRoot.innerHTML !== html) this.toastRoot.innerHTML = html;
     if (now - this.updateTime < 100) return;
     this.updateTime = now;
+    this.root.querySelector<HTMLElement>('#wrong-way')!.hidden = !g.wrongWay;
     const text = (id: string, value: string) => {
       this.root.querySelector(`#${id}`)!.textContent = value;
     };
@@ -267,8 +311,7 @@ export class Interface {
           ? 'Niski poziom energii'
           : 'Systemy gotowe',
     );
-    this.root.querySelector<HTMLElement>('#base-prompt')!.hidden =
-      g.phase !== 'oasis' || g.save.won;
+    this.root.querySelector<HTMLElement>('#base-prompt')!.hidden = g.phase !== 'oasis';
     const crosshair = this.root.querySelector<HTMLElement>('#crosshair')!;
     crosshair.classList.toggle('aiming', g.aim);
     crosshair.classList.toggle('target', !!g.targetId);

@@ -1136,3 +1136,41 @@ kbd {
     transition: none !important;
   }
 }
+
+#wrong-way {
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: #572315;
+  color: #ffe6ab;
+  font-weight: 750;
+  text-align: center;
+  pointer-events: none;
+  animation: wrong-way-blink 1s ease-in-out infinite alternate;
+}
+@keyframes wrong-way-blink {
+  to {
+    opacity: 0.4;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #wrong-way {
+    animation: none;
+  }
+}
+
+.money-gain {
+  position: fixed;
+  z-index: 8;
+  pointer-events: none;
+  color: #ffdf80;
+  font:
+    bold 22px/1 system-ui,
+    sans-serif;
+  text-shadow:
+    0 2px 3px #332308,
+    0 0 7px #4b340c;
+}
