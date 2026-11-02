@@ -43,6 +43,7 @@ import {
   type V3,
 } from '../game/math';
 import { upgradeInfo, upgrades } from '../game/data';
+import { paintTunnel } from './tunnel-paint';
 import marine from '../../public/models/marine-manifest.json';
 
 const bv = (p: V3) => new Vector3(p.x, p.y, p.z);
@@ -71,6 +72,8 @@ export class World {
   private bulletMeshes: TransformNode[] = [];
   private fx: Fx[] = [];
   private materials = new Map<string, StandardMaterial>();
+  private paintedStage = -1;
+  private coreRim?: StandardMaterial;
   private wall: StandardMaterial;
   private foliageRoots: TransformNode[] = [];
   private water: Mesh;
@@ -130,7 +133,6 @@ export class World {
     this.wall = this.mat('wall', '#72897d');
     this.wall.backFaceCulling = false;
     this.wall.twoSidedLighting = false;
-    this.wall.diffuseTexture = this.brickTexture();
     // Baked, unlit tunnel surfaces stay readable in every direction and quality preset.
     this.wall.disableLighting = true;
     this.wall.emissiveColor = Color3.White();
@@ -154,16 +156,18 @@ export class World {
     mesh.position.copyFrom(bv(position));
     return mesh;
   }
-  private brickTexture() {
+  private brickTexture(stage: number) {
     // One seamless atlas: broad ceramic pressure panels, teal seams and brass
     // fasteners. Transverse seams give optical flow; lengthwise rails show bends.
     const texture = new DynamicTexture(
       'marine-pressure-panels',
-      { width: 512, height: 512 },
+      { width: 2048, height: 2048 },
       this.scene,
       true,
     );
-    const ctx = texture.getContext() as unknown as CanvasRenderingContext2D;
+    const panel = document.createElement('canvas');
+    panel.width = panel.height = 512;
+    const ctx = panel.getContext('2d')!;
     const rng = seeded(27);
     ctx.fillStyle = '#b6c8c9';
     ctx.fillRect(0, 0, 512, 512);
@@ -194,28 +198,15 @@ export class World {
           ctx.fillStyle = '#f6dba6';
           ctx.fillRect(x - 2, y + dy - 3, 4, 2);
         }
-      // Broad, sparse chevrons can still be read while moving or on low quality.
-      ctx.strokeStyle = '#729c9f';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(208, y + 160);
-      ctx.lineTo(256, y + 116);
-      ctx.lineTo(304, y + 160);
-      ctx.stroke();
       ctx.fillStyle = '#90adae';
       ctx.font = 'bold 17px monospace';
       ctx.fillText('B / 07', 353, y + 209);
     }
-    ctx.fillStyle = '#5a8d96';
-    ctx.fillRect(0, 0, 26, 512);
-    ctx.fillStyle = '#a6d6d3';
-    ctx.fillRect(4, 0, 18, 512);
-    ctx.fillStyle = '#faffeb';
-    ctx.fillRect(8, 0, 9, 512);
     for (let i = 0; i < 2200; i++) {
       ctx.fillStyle = `rgba(67,107,106,${rng() * 0.05})`;
       ctx.fillRect(35 + rng() * 460, rng() * 512, 1 + rng() * 2, 1);
     }
+    paintTunnel(texture.getContext() as unknown as CanvasRenderingContext2D, panel, stage);
     texture.wrapU = Texture.WRAP_ADDRESSMODE;
     texture.wrapV = Texture.WRAP_ADDRESSMODE;
     texture.update();
@@ -548,7 +539,7 @@ export class World {
         points.push({
           p,
           normal: mul(radial, -1),
-          uv: [(j / sides) * 4, route.lengths[i] / 7],
+          uv: [j / sides, route.lengths[i] / 28],
           field,
           shade: 0.9 - radial.y * 0.08,
         });
@@ -620,6 +611,13 @@ export class World {
     this.pipes.dispose(false, false);
     this.pipes = new TransformNode('tunnels', this.scene);
     this.entities.clear();
+    const stage = this.game.save.level;
+    if (this.paintedStage !== stage) {
+      this.wall.diffuseTexture?.dispose();
+      this.wall.diffuseTexture = this.brickTexture(stage);
+      this.paintedStage = stage;
+    }
+    this.coreRim = stage === 4 ? this.mat('core-seam', '#67d4ca') : undefined;
     this.wall.diffuseColor = Color3.White();
     this.wall.emissiveColor = Color3.White();
     for (const route of this.game.layout.routes) this.tube(route, this.game.layout.routes);
@@ -642,13 +640,32 @@ export class World {
         const pos = along(route, s),
           tangent = norm(sub(along(route, s + 1), along(route, s - 1)));
         const ring = this.attach(
-          MeshBuilder.CreateTorus(
-            'pipe-band',
-            { diameter: route.radius * 2 - 0.3, thickness: 0.14, tessellation: 20 },
-            this.scene,
-          ),
+          this.coreRim
+            ? MeshBuilder.CreateTube(
+                'core-seam',
+                {
+                  path: Array.from({ length: 33 }, (_, i) => {
+                    const progress =
+                      (sector.index + s / route.length) / this.game.layout.sectors.length;
+                    const angle = (i / 32) * Math.PI * 2 * (0.08 + progress * 0.92) + s;
+                    return new Vector3(
+                      Math.cos(angle) * (route.radius - 0.19),
+                      0,
+                      Math.sin(angle) * (route.radius - 0.19),
+                    );
+                  }),
+                  radius: 0.07,
+                  tessellation: 4,
+                },
+                this.scene,
+              )
+            : MeshBuilder.CreateTorus(
+                'pipe-band',
+                { diameter: route.radius * 2 - 0.3, thickness: 0.14, tessellation: 20 },
+                this.scene,
+              ),
           this.pipes,
-          rimMat,
+          this.coreRim ?? rimMat,
           pos,
         );
         ring.rotationQuaternion = Quaternion.FromUnitVectorsToRef(
@@ -688,6 +705,7 @@ export class World {
       stage
     ];
     let index = 0;
+    let needsCoralLandmark = stage === 2 && route.pair === 0;
     for (let distance = 22; distance < route.length - 10; distance += 30) {
       const p = along(route, distance);
       const forward = norm(sub(along(route, distance + 1), along(route, distance - 1)));
@@ -702,6 +720,23 @@ export class World {
       root.rotationQuaternion = look(forward);
       root.metadata = { pair: route.pair };
       root.scaling.setAll(stage === 2 ? 0.65 : 1);
+      if (needsCoralLandmark) {
+        const bend = dot(
+          sub(add(along(route, distance - 7), along(route, distance + 7)), mul(p, 2)),
+          right,
+        );
+        if (Math.abs(bend) > 0.35) {
+          const outward = mul(right, -Math.sign(bend));
+          root.position.copyFrom(bv(add(p, mul(outward, route.radius - 1.1))));
+          root.rotationQuaternion = Quaternion.FromUnitVectorsToRef(
+            Vector3.Up(),
+            bv(mul(outward, -1)),
+            new Quaternion(),
+          );
+          root.scaling.setAll(1.15);
+          needsCoralLandmark = false;
+        }
+      }
       this.instantiate(name, root);
       for (const mesh of root.getChildMeshes()) mesh.metadata = { pair: route.pair };
     }
@@ -834,6 +869,11 @@ export class World {
       this.finishDiamond.rotation.y = this.time * 0.55;
       this.finishGlow.intensity = 0.9 + Math.sin(this.time * 2) * 0.18;
     }
+    if (this.coreRim)
+      this.coreRim.diffuseColor.scaleToRef(
+        0.65 + Math.sin(this.time * 1.6) * 0.14,
+        this.coreRim.emissiveColor,
+      );
     this.boat.position.copyFrom(bv(g.position));
     this.boat.rotationQuaternion = look(direction(g.yaw, g.pitch));
     this.propeller.rotation.z += dt * (3 + g.speed * 1.2);
