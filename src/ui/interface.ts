@@ -27,6 +27,8 @@ export class Interface {
   private last = '';
   private updateTime = 0;
   private popup = '';
+  private menuReady = false;
+  private menuStartAt: number | null = null;
   private notices: { text: string; tone: string; until: number }[] = [];
   private map: HTMLCanvasElement;
   private compass: HTMLElement;
@@ -78,12 +80,17 @@ export class Interface {
         this.last = '';
       }
     });
+    document.addEventListener('visibilitychange', () => {
+      this.menuStartAt = null;
+      this.refresh();
+    });
   }
   loading(text: string) {
     this.root.querySelector('#loading-text')!.textContent = text;
   }
   ready() {
     this.root.querySelector('#loading')!.remove();
+    this.menuReady = true;
     this.refresh();
   }
   private button(action: string, label: string, primary = false) {
@@ -188,6 +195,9 @@ export class Interface {
       this.notices.push({ text: e.text, tone: e.tone || 'info', until: performance.now() + 4300 });
   }
   refresh() {
+    if (this.menuReady && this.game.phase === 'menu' && !this.popup && !document.hidden) {
+      this.menuStartAt ??= performance.now() + 5000;
+    } else this.menuStartAt = null;
     const g = this.game,
       signature = `${g.phase}/${this.popup}/${g.save.money}/${Object.values(g.save.upgrades).join()}`;
     this.hud.hidden = this.popup !== '' || !['oasis', 'dive'].includes(g.phase);
@@ -211,7 +221,7 @@ export class Interface {
         `<span class="eyebrow">NOWA EKSPEDYCJA</span><h2>Zacząć od początku?</h2><p>Rozpoczniesz od pierwszego etapu bez pieniędzy i ulepszeń. Zapisana historia decyzji pozostanie zachowana.</p><div class="panel-actions">${this.button('back', 'Zachowaj postęp')}${this.button('reset', 'Nowa gra', true)}</div>`,
       );
     } else if (g.phase === 'menu') {
-      this.overlay.innerHTML = `<main class="main-menu" data-version="0.11"><h1>BATYSKAF</h1><div class="menu-submarine">${submarineArt}</div><button class="submarine-start" data-action="play" aria-label="Rozpocznij wyprawę">${startShape}<span>Graj</span></button><nav class="menu-links" aria-label="Menu gry"><button data-action="settings">Ustawienia</button><button data-action="help">Jak grać</button></nav></main>`;
+      this.overlay.innerHTML = `<main class="main-menu" data-version="0.11"><h1>BATYSKAF</h1><div class="menu-submarine">${submarineArt}</div><button class="submarine-start" data-action="play" aria-label="Rozpocznij wyprawę">${startShape}<span>Graj</span></button><p class="menu-countdown" role="timer" aria-live="off">Automatyczny start za <strong id="menu-seconds">5</strong> s</p><nav class="menu-links" aria-label="Menu gry"><button data-action="settings">Ustawienia</button><button data-action="help">Jak grać</button></nav></main>`;
     } else if (g.phase === 'paused') {
       this.overlay.innerHTML = frame(
         `<span class="eyebrow">CHWILA ODDECHU</span><h2>Wyprawa wstrzymana</h2><p>${esc(g.level.name)} · Energia ${Math.ceil((g.battery / g.stats.battery) * 100)}%</p><div class="stack">${this.button('resume', 'Wracaj do głębin', true)}${this.button('settings', 'Ustawienia')}${this.button('help', 'Sterowanie')}${g.previousPhase === 'oasis' ? this.button('launch', 'Zanurz się') + this.button('shop', 'Ulepszenia') : this.button('base', 'Wróć do oazy')}</div>`,
@@ -263,6 +273,17 @@ export class Interface {
       this.game.position.y < -1 && this.game.phase !== 'menu',
     );
     this.refresh();
+    if (this.menuStartAt !== null) {
+      const seconds = Math.max(0, Math.ceil((this.menuStartAt - now) / 1000));
+      if (seconds === 0) {
+        this.game.start();
+        this.refresh();
+      } else {
+        const counter = this.overlay.querySelector('#menu-seconds');
+        if (counter && counter.textContent !== String(seconds))
+          counter.textContent = String(seconds);
+      }
+    }
     const g = this.game;
     (this.root.querySelector('#screen-flash') as HTMLElement).style.opacity = String(
       g.hitFlash * 0.6,

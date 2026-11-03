@@ -170,6 +170,16 @@ select:focus-visible {
 .submarine-start:active {
   transform: translateY(2px);
 }
+.menu-countdown {
+  z-index: 1;
+  margin: 16px 0 0;
+  color: var(--dim);
+  font-size: 18px;
+}
+.menu-countdown strong {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
 .menu-links {
   display: flex;
   gap: 16px;
