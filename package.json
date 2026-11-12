@@ -13,6 +13,7 @@
     "server": "tsx server/index.ts",
     "assets:data": "python tools/prepare_data.py",
     "mock-arm": "tsx tools/mock_arm.ts",
+    "arms:health": "tsx tools/check_arms.ts",
     "format": "prettier --write src server tests tools/*.ts tools/*.mjs *.ts *.json index.html README.md docs public/models/SOURCES.md",
     "format:check": "prettier --check src server tests tools/*.ts tools/*.mjs *.ts *.json index.html README.md docs public/models/SOURCES.md",
     "measure": "node tools/measure.mjs"

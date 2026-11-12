@@ -60,6 +60,10 @@ Po wejściu do oazy kursor pozostaje dostępny dla przycisków. Podczas sterowan
 
 ## Integracja z portalem i stołem
 
+Konfiguracja POLSL: Alice `http://157.158.83.183:8001/api/v1/data`, Bob `http://157.158.83.183:8002/api/v1/data`. Adresy są ustawione w `.env.example`; lokalny backend korzysta z `.env`. Uzupełnij `ARM_ALICE_API_KEY` i `ARM_BOB_API_KEY` prawdziwymi kluczami od administratora sprzętu. `very-secret-api-key` w opisie protokołu jest przykładem, nie kluczem dostępowym. Bez klucza danego ramienia backend nie pozwoli utworzyć jego sesji.
+
+Z komputera w sieci POLSL (lub z odpowiednim VPN) uruchom `npm run arms:health`. Polecenie sprawdza wyłącznie `GET /api/v1/health` obu ramion: oczekuje HTTP 200 i treści `ok`, nie wysyła bitów. Brak odpowiedzi może oznaczać brak dostępu do sieci albo wyłączone ramię.
+
 Backend gry jest gotowym pośrednikiem. Backend portalu tworzy sesję z tożsamością gracza i ramieniem; przeglądarka dostaje wyłącznie token sesji. Adresy ramion i ich klucze znajdują się po stronie serwera.
 
 1. Skopiuj `.env.example` do `.env`; uzupełnij `PORTAL_ADMIN_KEY`, adres i klucz odpowiedniego ramienia. `.env` jest ignorowany przez Git. Backend wczytuje go przy uruchomieniu.
