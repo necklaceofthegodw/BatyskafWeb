@@ -19,12 +19,18 @@ const event = {
     level: 1,
   },
 };
-async function session(app: ReturnType<typeof createApp>['app']) {
+async function session(app: ReturnType<typeof createApp>['app'], armEndpoint = 'http://arm.test/') {
   const response = await app.inject({
     method: 'POST',
     url: '/api/sessions',
     headers: { authorization: 'Bearer admin-test' },
-    payload: { playerId: 'player-test', gameId: 'batyskaf', arm: 'alice' },
+    payload: {
+      playerId: 'player-test',
+      armEndpoint,
+      portalEndpoint: 'https://portal.test/return',
+      startAt: '2026-01-01T00:00:00Z',
+      endAt: '2099-01-01T00:00:00Z',
+    },
   });
   expect(response.statusCode).toBe(200);
   return response.json().token as string;
@@ -33,7 +39,7 @@ describe('portal bridge', () => {
   it('accepts a portal endpoint and enforces slot boundaries before sending bits', async () => {
     let time = Date.parse('2026-11-12T12:00:00Z');
     const start = time + 10000,
-      end = time + 20000;
+      end = time + 40000;
     const sent: { url: string; init: RequestInit }[] = [];
     const { app, drain } = createApp({
       dbPath: ':memory:',
@@ -51,18 +57,20 @@ describe('portal bridge', () => {
     });
     const payload = {
       playerId: 'portal-player',
-      gameId: 'batyskaf',
-      endpoint: 'http://arm.test:8002/api/v1/data',
-      startsAt: new Date(start).toISOString(),
-      endsAt: new Date(end).toISOString(),
+      armEndpoint: 'http://arm.test:8002/api/v1/data',
+      portalEndpoint: 'https://portal.test/return',
+      startAt: new Date(start).toISOString(),
+      endAt: new Date(end).toISOString(),
     };
     const admin = { authorization: 'Bearer admin-test' };
     try {
       for (const invalid of [
-        { ...payload, endpoint: 'http://unknown.test/data' },
-        { ...payload, arm: 'alice' },
-        { ...payload, startsAt: undefined },
-        { ...payload, endsAt: payload.startsAt },
+        { ...payload, armEndpoint: 'http://unknown.test/data' },
+        { ...payload, portalEndpoint: 'javascript:alert(1)' },
+        { ...payload, portalEndpoint: 'https://user:secret@portal.test/' },
+        { ...payload, startAt: undefined },
+        { ...payload, endAt: payload.startAt },
+        { ...payload, endAt: new Date(start + 10000).toISOString() },
       ])
         expect(
           (
@@ -87,8 +95,9 @@ describe('portal bridge', () => {
       expect(details.json()).toMatchObject({
         playerId: 'portal-player',
         arm: 'bob',
-        startsAt: start,
-        endsAt: end,
+        startAt: start,
+        endAt: end,
+        portalEndpoint: payload.portalEndpoint,
         serverTime: time,
       });
       expect(details.body).not.toContain('bob-secret');
@@ -105,7 +114,7 @@ describe('portal bridge', () => {
       expect((await post('at-start')).statusCode).toBe(202);
       await drain();
       expect(sent).toHaveLength(1);
-      expect(sent[0].url).toBe(payload.endpoint);
+      expect(sent[0].url).toBe(payload.armEndpoint);
       expect(sent[0].init.headers).toMatchObject({
         'X-API-Key': 'bob-secret',
         'X-Player-ID': 'portal-player',
@@ -115,9 +124,9 @@ describe('portal bridge', () => {
         bit: 1,
         timestamp_generation: new Date(start).toISOString(),
       });
-      time = end - 1;
+      time = end - 10001;
       expect((await post('queued')).statusCode).toBe(202);
-      time = end;
+      time = end - 10000;
       expect((await post('after')).statusCode).toBe(403);
       await drain();
       expect(sent).toHaveLength(1);
@@ -141,7 +150,13 @@ describe('portal bridge', () => {
           await app.inject({
             method: 'POST',
             url: '/api/sessions',
-            payload: { playerId: 'p', gameId: 'g', arm: 'alice' },
+            payload: {
+              playerId: 'p',
+              armEndpoint: 'http://arm.test/',
+              portalEndpoint: 'https://portal.test/',
+              startAt: '2026-01-01T00:00:00Z',
+              endAt: '2099-01-01T00:00:00Z',
+            },
           })
         ).statusCode,
       ).toBe(401);
@@ -315,7 +330,7 @@ describe('portal bridge', () => {
       autoDrain: false,
     });
     try {
-      const token = await session(app);
+      const token = await session(app, `http://127.0.0.1:${port}/bit`);
       expect(
         (
           await app.inject({

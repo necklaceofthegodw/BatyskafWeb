@@ -28,6 +28,7 @@ interface SessionRow {
   starts_at: number | null;
   ends_at: number | null;
   endpoint: string | null;
+  portal_endpoint: string | null;
 }
 interface ChoiceRow {
   id: string;
@@ -62,6 +63,7 @@ export function createApp(options: ServerOptions = {}) {
     ['starts_at', 'INTEGER'],
     ['ends_at', 'INTEGER'],
     ['endpoint', 'TEXT'],
+    ['portal_endpoint', 'TEXT'],
   ]) {
     if (!columns.some((column) => column.name === name))
       db.exec(`ALTER TABLE sessions ADD COLUMN ${name} ${type}`);
@@ -89,12 +91,10 @@ export function createApp(options: ServerOptions = {}) {
   app.post<{
     Body: {
       playerId: string;
-      gameId: string;
-      arm?: 'alice' | 'bob';
-      endpoint?: string;
-      startsAt?: string;
-      endsAt?: string;
-      ttlSeconds?: number;
+      armEndpoint: string;
+      portalEndpoint: string;
+      startAt: string;
+      endAt: string;
     };
   }>(
     '/api/sessions',
@@ -103,7 +103,7 @@ export function createApp(options: ServerOptions = {}) {
         body: {
           type: 'object',
           additionalProperties: false,
-          required: ['playerId', 'gameId'],
+          required: ['playerId', 'armEndpoint', 'portalEndpoint', 'startAt', 'endAt'],
           properties: {
             playerId: {
               type: 'string',
@@ -111,17 +111,10 @@ export function createApp(options: ServerOptions = {}) {
               maxLength: 128,
               pattern: '^[^\\r\\n\\x00-\\x1f]+$',
             },
-            gameId: {
-              type: 'string',
-              minLength: 1,
-              maxLength: 128,
-              pattern: '^[^\\r\\n\\x00-\\x1f]+$',
-            },
-            arm: { type: 'string', enum: ['alice', 'bob'] },
-            endpoint: { type: 'string', maxLength: 2048 },
-            startsAt: { type: 'string', format: 'date-time' },
-            endsAt: { type: 'string', format: 'date-time' },
-            ttlSeconds: { type: 'integer', minimum: 60, maximum: 86400 },
+            armEndpoint: { type: 'string', minLength: 1, maxLength: 2048 },
+            portalEndpoint: { type: 'string', minLength: 1, maxLength: 2048 },
+            startAt: { type: 'string', format: 'date-time' },
+            endAt: { type: 'string', format: 'date-time' },
           },
         },
       },
@@ -131,49 +124,60 @@ export function createApp(options: ServerOptions = {}) {
       if (!key || !secretEqual(request.headers.authorization || '', `Bearer ${key}`))
         return reply.code(401).send({ error: 'Portal authorization required' });
       const b = request.body;
-      const selected = b.endpoint
-        ? (['alice', 'bob'] as const).find((name) => arms[name]?.url === b.endpoint)
-        : b.arm;
-      if (!selected || (b.arm && selected !== b.arm))
-        return reply.code(400).send({ error: 'Select a configured arm endpoint' });
+      const selected = (['alice', 'bob'] as const).find(
+        (name) => arms[name]?.url === b.armEndpoint,
+      );
+      if (!selected) return reply.code(400).send({ error: 'Select a configured arm endpoint' });
       if (!arms[selected]?.url || !arms[selected]?.apiKey)
         return reply.code(503).send({ error: 'Arm not configured' });
-      if (Boolean(b.startsAt) !== Boolean(b.endsAt))
-        return reply.code(400).send({ error: 'Both startsAt and endsAt are required for a slot' });
-      const startsAt = b.startsAt ? Date.parse(b.startsAt) : null;
-      const endsAt = b.endsAt ? Date.parse(b.endsAt) : null;
+      let portalEndpoint: URL;
+      try {
+        portalEndpoint = new URL(b.portalEndpoint);
+        if (
+          !['http:', 'https:'].includes(portalEndpoint.protocol) ||
+          portalEndpoint.username ||
+          portalEndpoint.password
+        )
+          throw new Error('Invalid portal URL');
+      } catch {
+        return reply
+          .code(400)
+          .send({ error: 'portalEndpoint must be an absolute HTTP(S) URL without credentials' });
+      }
+      const startsAt = Date.parse(b.startAt);
+      const endsAt = Date.parse(b.endAt);
       if (
-        startsAt !== null &&
-        endsAt !== null &&
-        (!Number.isFinite(startsAt) ||
-          !Number.isFinite(endsAt) ||
-          endsAt <= startsAt ||
-          endsAt <= now())
+        !Number.isFinite(startsAt) ||
+        !Number.isFinite(endsAt) ||
+        endsAt - 10000 <= startsAt ||
+        endsAt <= now()
       )
-        return reply.code(400).send({ error: 'Slot must end after its start and in the future' });
+        return reply
+          .code(400)
+          .send({ error: 'Slot must be longer than 10 seconds and end in the future' });
       const token = randomBytes(32).toString('base64url'),
         id = randomUUID(),
-        expiresAt = endsAt !== null ? endsAt + 3600000 : now() + (b.ttlSeconds || 7200) * 1000;
+        expiresAt = endsAt + 3600000;
       db.prepare(
-        'INSERT INTO sessions (id,token_hash,player_id,game_id,arm,expires_at,starts_at,ends_at,endpoint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO sessions (id,token_hash,player_id,game_id,arm,expires_at,starts_at,ends_at,endpoint,portal_endpoint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       ).run(
         id,
         hash(token),
         b.playerId,
-        b.gameId,
+        'batyskaf',
         selected,
         expiresAt,
         startsAt,
         endsAt,
         arms[selected]!.url,
+        portalEndpoint.href,
       );
       reply.header('Cache-Control', 'no-store');
       return {
         token,
         expiresAt,
-        startsAt,
-        endsAt,
-        launchFragment: `#session=${token}`,
+        startAt: startsAt,
+        endAt: endsAt,
         launchPath: `/waiting#session=${token}`,
       };
     },
@@ -188,8 +192,9 @@ export function createApp(options: ServerOptions = {}) {
       gameId: s.game_id,
       arm: s.arm,
       expiresAt: s.expires_at,
-      startsAt: s.starts_at,
-      endsAt: s.ends_at,
+      startAt: s.starts_at,
+      endAt: s.ends_at,
+      portalEndpoint: s.portal_endpoint,
       serverTime: now(),
     };
   });
@@ -246,9 +251,9 @@ export function createApp(options: ServerOptions = {}) {
         const generatedAt = Date.parse(b.timestamp_generation);
         if (
           now() < session.starts_at ||
-          now() >= session.ends_at ||
+          now() >= session.ends_at - 10000 ||
           generatedAt < session.starts_at ||
-          generatedAt >= session.ends_at ||
+          generatedAt >= session.ends_at - 10000 ||
           generatedAt > now() + 5000
         )
           return reply.code(403).send({ error: 'Decision outside the game slot' });
@@ -343,7 +348,7 @@ export function createApp(options: ServerOptions = {}) {
           .prepare('SELECT * FROM sessions WHERE id = ?')
           .get(row.session_id) as unknown as SessionRow;
         const arm = arms[s.arm];
-        if (s.ends_at !== null && now() >= s.ends_at) {
+        if (s.ends_at !== null && now() >= s.ends_at - 10000) {
           db.prepare("UPDATE choices SET status='blocked',last_error='Slot ended' WHERE id=?").run(
             row.id,
           );

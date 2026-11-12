@@ -60,7 +60,7 @@ Po wejściu do oazy kursor pozostaje dostępny dla przycisków. Podczas sterowan
 
 ## Integracja z portalem i stołem
 
-Poczekalnia i harmonogram slotów są obsługiwane przez `POST /api/sessions` i stronę `/waiting`. Portal może przekazać `playerId`, `gameId`, `endpoint`, `startsAt` i `endsAt`. Gra czeka na początek, startuje automatycznie i pokazuje podziękowanie po końcu slotu. Pełny kontrakt oraz przykład uruchomienia: [PORTAL](docs/PORTAL.md).
+Poczekalnia i harmonogram slotów są obsługiwane przez `POST /api/sessions` i stronę `/waiting`. Portal przekazuje tylko `playerId`, `armEndpoint`, `portalEndpoint`, `startAt` i `endAt`. Gra startuje o `startAt`, pokazuje podsumowanie 10 sekund przed końcem i wraca do portalu o `endAt`. Pełny kontrakt oraz przykład uruchomienia: [PORTAL](docs/PORTAL.md).
 
 Konfiguracja POLSL: Alice `http://157.158.83.183:8001/api/v1/data`, Bob `http://157.158.83.183:8002/api/v1/data`. Adresy są ustawione w `.env.example`; lokalny backend korzysta z `.env`. Uzupełnij `ARM_API_KEY` wspólnym kluczem od administratora sprzętu. Opcjonalne `ARM_ALICE_API_KEY` i `ARM_BOB_API_KEY` mają pierwszeństwo dla danego ramienia; przy wspólnym kluczu pozostaw je puste. `very-secret-api-key` w opisie protokołu jest przykładem, nie potwierdzonym kluczem dostępowym. Bez klucza backend nie pozwoli utworzyć sesji ramienia.
 
@@ -72,10 +72,16 @@ Backend gry jest gotowym pośrednikiem. Backend portalu tworzy sesję z tożsamo
 2. Backend portalu wywołuje `POST /api/sessions`, z nagłówkiem `Authorization: Bearer <PORTAL_ADMIN_KEY>` i JSON-em:
 
 ```json
-{ "playerId": "id-z-portalu", "gameId": "batyskaf", "arm": "alice", "ttlSeconds": 7200 }
+{
+  "playerId": "id-z-portalu",
+  "armEndpoint": "http://157.158.83.183:8001/api/v1/data",
+  "portalEndpoint": "https://portal.example/gry",
+  "startAt": "2026-11-20T10:00:00Z",
+  "endAt": "2026-11-20T10:15:00Z"
+}
 ```
 
-3. Odpowiedź zawiera `token`, `expiresAt` i `launchFragment`. Portal otwiera adres gry z otrzymanym fragmentem, np. `https://domena-gry/#session=<token>`. Token jest usuwany z widocznego adresu po odczycie i zachowywany w `sessionStorage` do odświeżenia tej karty.
+3. Odpowiedź zawiera `token`, `expiresAt` i `launchPath`. Portal otwiera otrzymaną ścieżkę na domenie backendu gry, np. `https://domena-gry/waiting#session=<token>`. Token jest usuwany z widocznego adresu po odczycie i zachowywany w `sessionStorage` do odświeżenia tej karty.
 4. Gra wysyła decyzje do `/api/choices`; backend potwierdza zapis w SQLite, a następnie przesyła je do przypisanego ramienia.
 
 ```http
@@ -117,17 +123,7 @@ Pełne dostarczenie „dokładnie raz” do ramienia wymaga obsługi `metadata.e
 
 W dodatkowym terminalu: `npm run mock-arm`. Odbiornik nasłuchuje wyłącznie na `127.0.0.1:8790/bit` i zapisuje `.local/mock-arm.jsonl`. Domyślny klucz testowy to `local-test-only`.
 
-W konfiguracji backendu ustaw `ARM_ALICE_URL=http://127.0.0.1:8790/bit`, `ARM_ALICE_API_KEY=local-test-only` i własny `PORTAL_ADMIN_KEY`. Uruchom backend ponownie, a następnie w PowerShell:
-
-```powershell
-$portalKey = Read-Host 'PORTAL_ADMIN_KEY'
-$launch = Invoke-RestMethod http://127.0.0.1:8787/api/sessions -Method Post `
-  -Headers @{ Authorization = "Bearer $portalKey" } -ContentType application/json `
-  -Body '{"playerId":"test-player","gameId":"batyskaf","arm":"alice"}'
-"http://127.0.0.1:8787/$($launch.launchFragment)"
-```
-
-Otwórz otrzymany link i wykonaj wybór w grze. W terminalu odbiornika pojawi się odebrany bit. Klucza testowego nie używaj dla prawdziwego ramienia.
+W konfiguracji backendu ustaw `ARM_ALICE_URL=http://127.0.0.1:8790/bit`, `ARM_ALICE_API_KEY=local-test-only` i własny `PORTAL_ADMIN_KEY`. Uruchom backend ponownie. Utworzenie sesji z pięcioma polami oraz otwarcie poczekalni opisuje [lokalny przykład](docs/PORTAL.md#lokalny-test-pełnej-integracji). W terminalu odbiornika pojawią się odebrane bity. Klucza testowego nie używaj dla prawdziwego ramienia.
 
 ## Wdrożenie
 

@@ -200,7 +200,7 @@ export class Interface {
     if (
       this.menuReady &&
       slot === 'active' &&
-      this.portal.session?.startsAt != null &&
+      this.portal.session?.startAt != null &&
       this.game.phase === 'menu'
     ) {
       this.popup = '';
@@ -218,11 +218,13 @@ export class Interface {
     const g = this.game,
       seconds = Math.max(
         0,
-        Math.ceil(
-          ((this.portal.session?.startsAt ?? this.portal.now()) - this.portal.now()) / 1000,
-        ),
+        Math.ceil(((this.portal.session?.startAt ?? this.portal.now()) - this.portal.now()) / 1000),
       ),
-      signature = `${slot}/${slot === 'waiting' ? seconds : ''}/${g.phase}/${this.popup}/${g.save.money}/${Object.values(g.save.upgrades).join()}`;
+      returnSeconds = Math.max(
+        0,
+        Math.ceil(((this.portal.session?.endAt ?? this.portal.now()) - this.portal.now()) / 1000),
+      ),
+      signature = `${slot}/${slot === 'waiting' ? seconds : slot === 'ended' ? returnSeconds : ''}/${g.phase}/${this.popup}/${g.save.money}/${Object.values(g.save.upgrades).join()}`;
     this.hud.hidden =
       slot !== 'active' || this.popup !== '' || !['oasis', 'dive'].includes(g.phase);
     this.toastRoot.hidden = this.hud.hidden;
@@ -238,7 +240,7 @@ export class Interface {
     } else if (slot === 'ended') {
       this.popup = '';
       this.overlay.innerHTML = frame(
-        `<span class="eyebrow">SLOT ZAKOŃCZONY</span><h2>Dziękujemy za grę!</h2><p>Czas Twojej rozgrywki dobiegł końca.</p><p>Możesz zamknąć tę kartę i wrócić do portalu.</p>`,
+        `<span class="eyebrow">PODSUMOWANIE GRY</span><h2>Dziękujemy za grę!</h2><dl class="slot-summary"><div><dt>Maksymalna głębokość</dt><dd data-stat="max-depth">${Math.round(g.summary.maxDepth).toLocaleString('pl-PL')} m</dd></div><div><dt>Najwyższy osiągnięty poziom</dt><dd data-stat="max-level">${g.summary.maxLevel} / 5</dd></div><div><dt>Zdobyte pieniądze</dt><dd data-stat="money-earned">${g.summary.moneyEarned.toLocaleString('pl-PL')} $</dd></div></dl>${this.portal.session?.portalEndpoint ? `<p role="timer" aria-live="off">Powrót do portalu za ${returnSeconds} s</p>` : '<p>Możesz zamknąć tę kartę.</p>'}`,
         'slot-panel',
       );
     } else if (this.popup === 'settings') {

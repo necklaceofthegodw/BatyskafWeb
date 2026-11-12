@@ -22,4 +22,17 @@ it.each([0, 1, 2, 3, 4])('awards the level %i diamond once, only on contact', (l
   expect(save.won).toBe(level === 4);
   game.finishLevel();
   expect(save.money).toBe(37 + (level + 1) * 100);
+  expect(game.summary.moneyEarned).toBe((level + 1) * 100);
+  expect(game.summary.maxLevel).toBe(Math.min(5, level + 2));
+  expect(game.summary.maxDepth).toBeGreaterThan(0);
+  const earned = game.summary.moneyEarned;
+  game.phase = 'shop';
+  expect(game.buy('MaxSpeed')).toBe(true);
+  expect(game.summary.moneyEarned).toBe(earned);
+  const depth = game.summary.maxDepth;
+  game.save = freshSave();
+  game.start();
+  expect(game.summary.maxDepth).toBe(depth);
+  expect(game.summary.maxLevel).toBe(Math.min(5, level + 2));
+  expect(game.summary.moneyEarned).toBe(earned);
 });

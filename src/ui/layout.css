@@ -170,6 +170,27 @@ select:focus-visible {
 .submarine-start:active {
   transform: translateY(2px);
 }
+.slot-summary {
+  margin: 24px 0;
+}
+.slot-summary > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.slot-summary dt {
+  color: var(--dim);
+}
+.slot-summary dd {
+  margin: 0;
+  color: var(--gold);
+  font-size: 22px;
+  font-weight: bold;
+  white-space: nowrap;
+}
 .menu-countdown {
   z-index: 1;
   margin: 16px 0 0;

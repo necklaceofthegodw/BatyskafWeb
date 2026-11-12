@@ -5,8 +5,9 @@ export interface PortalSession {
   gameId: string;
   arm: 'alice' | 'bob';
   expiresAt: number;
-  startsAt?: number | null;
-  endsAt?: number | null;
+  startAt?: number | null;
+  endAt?: number | null;
+  portalEndpoint?: string | null;
   serverTime?: number;
 }
 
@@ -19,6 +20,7 @@ export class Portal {
   private stopped = false;
   private timer?: ReturnType<typeof setTimeout>;
   private clock?: { server: number; local: number };
+  private returning = false;
   constructor(private token: string | null) {}
   get local() {
     return !this.token;
@@ -29,8 +31,21 @@ export class Portal {
   get slotState(): 'waiting' | 'active' | 'ended' {
     const s = this.session;
     if (!s) return this.local ? 'active' : 'waiting';
-    if (this.now() >= Math.min(s.endsAt ?? Infinity, s.expiresAt)) return 'ended';
-    return s.startsAt != null && this.now() < s.startsAt ? 'waiting' : 'active';
+    if (this.now() >= Math.min(s.endAt != null ? s.endAt - 10000 : Infinity, s.expiresAt))
+      return 'ended';
+    return s.startAt != null && this.now() < s.startAt ? 'waiting' : 'active';
+  }
+  returnIfDue() {
+    const s = this.session;
+    if (!this.returning && s?.endAt != null && s.portalEndpoint && this.now() >= s.endAt) {
+      this.returning = true;
+      try {
+        sessionStorage.removeItem('batyskaf-session');
+      } catch {
+        /* Navigation still works without storage. */
+      }
+      location.assign(s.portalEndpoint);
+    }
   }
   static tokenFromLocation() {
     const params = new URLSearchParams(location.hash.slice(1));

@@ -90,6 +90,7 @@ interface Effect {
 }
 
 export class GameCore {
+  readonly summary = { maxDepth: 0, maxLevel: 1, moneyEarned: 0 };
   clock: () => number = Date.now;
   phase: Phase = 'menu';
   previousPhase: 'oasis' | 'dive' = 'oasis';
@@ -135,6 +136,7 @@ export class GameCore {
 
   constructor(save = freshSave()) {
     this.save = save;
+    this.summary.maxLevel = save.level + 1;
     this.layout = makeLayout(save.level);
     this.battery = this.stats.battery;
     this.resetEntities();
@@ -246,11 +248,14 @@ export class GameCore {
     this.completedLevel = this.save.level + 1;
     this.completionReward = this.completedLevel * 100;
     this.save.money += this.completionReward;
+    this.summary.moneyEarned += this.completionReward;
+    this.summary.maxDepth = Math.max(this.summary.maxDepth, this.depth);
     this.emit({ type: 'collect', position: { ...this.layout.exit } });
     this.notice(`Poziom ukończony! Nagroda: +${this.completionReward} ◈`, 'good');
     this.save.bestDepth = Math.max(this.save.bestDepth, this.depth);
     if (this.save.level === campaign.length - 1) this.save.won = true;
     else this.save.level++;
+    this.summary.maxLevel = Math.max(this.summary.maxLevel, this.save.level + 1);
     this.returnToBase('complete');
   }
   get fragmentNumber() {
@@ -582,6 +587,7 @@ export class GameCore {
             const item = sourceData.collectables[e.variant % sourceData.collectables.length],
               value = item.MarketPrice;
             this.save.money += value;
+            this.summary.moneyEarned += value;
             this.runLoot += value;
             this.cargo.push(e.variant);
             this.emit({ type: 'collect', moneyGained: value });
@@ -779,6 +785,7 @@ export class GameCore {
     if (this.phase !== 'dive') return;
     this.routeTime += dt;
     this.save.bestDepth = Math.max(this.save.bestDepth, this.depth);
+    this.summary.maxDepth = Math.max(this.summary.maxDepth, this.depth);
     this.updateEntities(dt);
     const nearest = this.nearest(this.position),
       sector = this.layout.sectors[this.pair];
