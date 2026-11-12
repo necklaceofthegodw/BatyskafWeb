@@ -5,6 +5,9 @@ export interface PortalSession {
   gameId: string;
   arm: 'alice' | 'bob';
   expiresAt: number;
+  startsAt?: number | null;
+  endsAt?: number | null;
+  serverTime?: number;
 }
 
 export class Portal {
@@ -15,9 +18,19 @@ export class Portal {
   private busy = false;
   private stopped = false;
   private timer?: ReturnType<typeof setTimeout>;
+  private clock?: { server: number; local: number };
   constructor(private token: string | null) {}
   get local() {
     return !this.token;
+  }
+  now() {
+    return this.clock ? this.clock.server + performance.now() - this.clock.local : Date.now();
+  }
+  get slotState(): 'waiting' | 'active' | 'ended' {
+    const s = this.session;
+    if (!s) return this.local ? 'active' : 'waiting';
+    if (this.now() >= Math.min(s.endsAt ?? Infinity, s.expiresAt)) return 'ended';
+    return s.startsAt != null && this.now() < s.startsAt ? 'waiting' : 'active';
   }
   static tokenFromLocation() {
     const params = new URLSearchParams(location.hash.slice(1));
@@ -38,6 +51,8 @@ export class Portal {
       });
       if (!response.ok) throw new Error('Sesja portalu jest niedostępna lub wygasła.');
       this.session = await response.json();
+      if (this.session?.serverTime != null)
+        this.clock = { server: this.session.serverTime, local: performance.now() };
     } catch (e) {
       this.error = (e as Error).message;
     }
@@ -49,7 +64,9 @@ export class Portal {
       const records = await storage.pending();
       this.pending = records.length;
       if (!this.token || !this.session) return;
+      if (this.slotState !== 'active') return;
       for (const { delivered: _, profile: __, owner: ___, ...record } of records.slice(0, 40)) {
+        if (this.slotState !== 'active') break;
         const response = await fetch('/api/choices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` },

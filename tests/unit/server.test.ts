@@ -30,6 +30,104 @@ async function session(app: ReturnType<typeof createApp>['app']) {
   return response.json().token as string;
 }
 describe('portal bridge', () => {
+  it('accepts a portal endpoint and enforces slot boundaries before sending bits', async () => {
+    let time = Date.parse('2026-11-12T12:00:00Z');
+    const start = time + 10000,
+      end = time + 20000;
+    const sent: { url: string; init: RequestInit }[] = [];
+    const { app, drain } = createApp({
+      dbPath: ':memory:',
+      adminKey: 'admin-test',
+      autoDrain: false,
+      now: () => time,
+      arms: {
+        alice: { url: 'http://arm.test:8001/api/v1/data', apiKey: 'alice-secret' },
+        bob: { url: 'http://arm.test:8002/api/v1/data', apiKey: 'bob-secret' },
+      },
+      fetch: (async (url, init) => {
+        sent.push({ url: String(url), init: init! });
+        return new Response(null, { status: 204 });
+      }) as typeof fetch,
+    });
+    const payload = {
+      playerId: 'portal-player',
+      gameId: 'batyskaf',
+      endpoint: 'http://arm.test:8002/api/v1/data',
+      startsAt: new Date(start).toISOString(),
+      endsAt: new Date(end).toISOString(),
+    };
+    const admin = { authorization: 'Bearer admin-test' };
+    try {
+      for (const invalid of [
+        { ...payload, endpoint: 'http://unknown.test/data' },
+        { ...payload, arm: 'alice' },
+        { ...payload, startsAt: undefined },
+        { ...payload, endsAt: payload.startsAt },
+      ])
+        expect(
+          (
+            await app.inject({
+              method: 'POST',
+              url: '/api/sessions',
+              headers: admin,
+              payload: invalid,
+            })
+          ).statusCode,
+        ).toBe(400);
+      const created = await app.inject({
+        method: 'POST',
+        url: '/api/sessions',
+        headers: admin,
+        payload,
+      });
+      expect(created.statusCode).toBe(200);
+      const headers = { authorization: `Bearer ${created.json().token}` };
+      expect(created.json().launchPath).toMatch(/^\/waiting#session=/);
+      const details = await app.inject({ url: '/api/session', headers });
+      expect(details.json()).toMatchObject({
+        playerId: 'portal-player',
+        arm: 'bob',
+        startsAt: start,
+        endsAt: end,
+        serverTime: time,
+      });
+      expect(details.body).not.toContain('bob-secret');
+      const post = (id: string, timestamp = time) =>
+        app.inject({
+          method: 'POST',
+          url: '/api/choices',
+          headers,
+          payload: { ...event, id, timestamp_generation: new Date(timestamp).toISOString() },
+        });
+      expect((await post('before')).statusCode).toBe(403);
+      time = start;
+      expect((await post('stale', start - 1)).statusCode).toBe(403);
+      expect((await post('at-start')).statusCode).toBe(202);
+      await drain();
+      expect(sent).toHaveLength(1);
+      expect(sent[0].url).toBe(payload.endpoint);
+      expect(sent[0].init.headers).toMatchObject({
+        'X-API-Key': 'bob-secret',
+        'X-Player-ID': 'portal-player',
+        'X-Game-ID': 'batyskaf',
+      });
+      expect(JSON.parse(String(sent[0].init.body))).toMatchObject({
+        bit: 1,
+        timestamp_generation: new Date(start).toISOString(),
+      });
+      time = end - 1;
+      expect((await post('queued')).statusCode).toBe(202);
+      time = end;
+      expect((await post('after')).statusCode).toBe(403);
+      await drain();
+      expect(sent).toHaveLength(1);
+      expect((await app.inject({ url: '/api/delivery', headers })).json().blocked).toBe(1);
+      // Reloading during the grace period still provides data for the thank-you screen.
+      expect((await app.inject({ url: '/api/session', headers })).statusCode).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
   it('requires portal authentication and never sends the arm secret to browsers', async () => {
     const { app } = createApp({
       dbPath: ':memory:',

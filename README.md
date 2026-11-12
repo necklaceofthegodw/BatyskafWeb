@@ -60,7 +60,9 @@ Po wejściu do oazy kursor pozostaje dostępny dla przycisków. Podczas sterowan
 
 ## Integracja z portalem i stołem
 
-Konfiguracja POLSL: Alice `http://157.158.83.183:8001/api/v1/data`, Bob `http://157.158.83.183:8002/api/v1/data`. Adresy są ustawione w `.env.example`; lokalny backend korzysta z `.env`. Uzupełnij `ARM_ALICE_API_KEY` i `ARM_BOB_API_KEY` prawdziwymi kluczami od administratora sprzętu. `very-secret-api-key` w opisie protokołu jest przykładem, nie kluczem dostępowym. Bez klucza danego ramienia backend nie pozwoli utworzyć jego sesji.
+Poczekalnia i harmonogram slotów są obsługiwane przez `POST /api/sessions` i stronę `/waiting`. Portal może przekazać `playerId`, `gameId`, `endpoint`, `startsAt` i `endsAt`. Gra czeka na początek, startuje automatycznie i pokazuje podziękowanie po końcu slotu. Pełny kontrakt oraz przykład uruchomienia: [PORTAL](docs/PORTAL.md).
+
+Konfiguracja POLSL: Alice `http://157.158.83.183:8001/api/v1/data`, Bob `http://157.158.83.183:8002/api/v1/data`. Adresy są ustawione w `.env.example`; lokalny backend korzysta z `.env`. Uzupełnij `ARM_API_KEY` wspólnym kluczem od administratora sprzętu. Opcjonalne `ARM_ALICE_API_KEY` i `ARM_BOB_API_KEY` mają pierwszeństwo dla danego ramienia; przy wspólnym kluczu pozostaw je puste. `very-secret-api-key` w opisie protokołu jest przykładem, nie potwierdzonym kluczem dostępowym. Bez klucza backend nie pozwoli utworzyć sesji ramienia.
 
 Z komputera w sieci POLSL (lub z odpowiednim VPN) uruchom `npm run arms:health`. Polecenie sprawdza wyłącznie `GET /api/v1/health` obu ramion: oczekuje HTTP 200 i treści `ok`, nie wysyła bitów. Brak odpowiedzi może oznaczać brak dostępu do sieci albo wyłączone ramię.
 

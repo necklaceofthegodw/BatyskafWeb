@@ -90,6 +90,7 @@ interface Effect {
 }
 
 export class GameCore {
+  clock: () => number = Date.now;
   phase: Phase = 'menu';
   previousPhase: 'oasis' | 'dive' = 'oasis';
   position = v(16, 2.8, -17);
@@ -339,7 +340,7 @@ export class GameCore {
     const decision: Decision = {
       id: `${this.sessionId}:${this.attempt}:level-${this.save.level}:${key}`,
       bit,
-      timestamp_generation: new Date().toISOString(),
+      timestamp_generation: new Date(this.clock()).toISOString(),
       metadata: {
         session_id: this.sessionId,
         sequence: String(this.sequence),

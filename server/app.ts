@@ -25,6 +25,9 @@ interface SessionRow {
   game_id: string;
   arm: 'alice' | 'bob';
   expires_at: number;
+  starts_at: number | null;
+  ends_at: number | null;
+  endpoint: string | null;
 }
 interface ChoiceRow {
   id: string;
@@ -53,6 +56,16 @@ export function createApp(options: ServerOptions = {}) {
   db.exec(`CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, player_id TEXT NOT NULL, game_id TEXT NOT NULL, arm TEXT NOT NULL, expires_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS choices (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), payload TEXT NOT NULL, fingerprint TEXT NOT NULL, endpoint TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, last_error TEXT NOT NULL DEFAULT '');
     CREATE INDEX IF NOT EXISTS choices_queue ON choices(status, next_attempt);`);
+  // Additive migration for databases created before portal slots were introduced.
+  const columns = db.prepare('PRAGMA table_info(sessions)').all() as { name: string }[];
+  for (const [name, type] of [
+    ['starts_at', 'INTEGER'],
+    ['ends_at', 'INTEGER'],
+    ['endpoint', 'TEXT'],
+  ]) {
+    if (!columns.some((column) => column.name === name))
+      db.exec(`ALTER TABLE sessions ADD COLUMN ${name} ${type}`);
+  }
   const arms = options.arms || {},
     now = options.now || Date.now,
     send = options.fetch || fetch;
@@ -74,7 +87,15 @@ export function createApp(options: ServerOptions = {}) {
     configuredArms: Object.keys(arms),
   }));
   app.post<{
-    Body: { playerId: string; gameId: string; arm: 'alice' | 'bob'; ttlSeconds?: number };
+    Body: {
+      playerId: string;
+      gameId: string;
+      arm?: 'alice' | 'bob';
+      endpoint?: string;
+      startsAt?: string;
+      endsAt?: string;
+      ttlSeconds?: number;
+    };
   }>(
     '/api/sessions',
     {
@@ -82,7 +103,7 @@ export function createApp(options: ServerOptions = {}) {
         body: {
           type: 'object',
           additionalProperties: false,
-          required: ['playerId', 'gameId', 'arm'],
+          required: ['playerId', 'gameId'],
           properties: {
             playerId: {
               type: 'string',
@@ -97,6 +118,9 @@ export function createApp(options: ServerOptions = {}) {
               pattern: '^[^\\r\\n\\x00-\\x1f]+$',
             },
             arm: { type: 'string', enum: ['alice', 'bob'] },
+            endpoint: { type: 'string', maxLength: 2048 },
+            startsAt: { type: 'string', format: 'date-time' },
+            endsAt: { type: 'string', format: 'date-time' },
             ttlSeconds: { type: 'integer', minimum: 60, maximum: 86400 },
           },
         },
@@ -107,21 +131,51 @@ export function createApp(options: ServerOptions = {}) {
       if (!key || !secretEqual(request.headers.authorization || '', `Bearer ${key}`))
         return reply.code(401).send({ error: 'Portal authorization required' });
       const b = request.body;
-      if (!arms[b.arm]?.url || !arms[b.arm]?.apiKey)
+      const selected = b.endpoint
+        ? (['alice', 'bob'] as const).find((name) => arms[name]?.url === b.endpoint)
+        : b.arm;
+      if (!selected || (b.arm && selected !== b.arm))
+        return reply.code(400).send({ error: 'Select a configured arm endpoint' });
+      if (!arms[selected]?.url || !arms[selected]?.apiKey)
         return reply.code(503).send({ error: 'Arm not configured' });
+      if (Boolean(b.startsAt) !== Boolean(b.endsAt))
+        return reply.code(400).send({ error: 'Both startsAt and endsAt are required for a slot' });
+      const startsAt = b.startsAt ? Date.parse(b.startsAt) : null;
+      const endsAt = b.endsAt ? Date.parse(b.endsAt) : null;
+      if (
+        startsAt !== null &&
+        endsAt !== null &&
+        (!Number.isFinite(startsAt) ||
+          !Number.isFinite(endsAt) ||
+          endsAt <= startsAt ||
+          endsAt <= now())
+      )
+        return reply.code(400).send({ error: 'Slot must end after its start and in the future' });
       const token = randomBytes(32).toString('base64url'),
         id = randomUUID(),
-        expiresAt = now() + (b.ttlSeconds || 7200) * 1000;
-      db.prepare('INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)').run(
+        expiresAt = endsAt !== null ? endsAt + 3600000 : now() + (b.ttlSeconds || 7200) * 1000;
+      db.prepare(
+        'INSERT INTO sessions (id,token_hash,player_id,game_id,arm,expires_at,starts_at,ends_at,endpoint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ).run(
         id,
         hash(token),
         b.playerId,
         b.gameId,
-        b.arm,
+        selected,
         expiresAt,
+        startsAt,
+        endsAt,
+        arms[selected]!.url,
       );
       reply.header('Cache-Control', 'no-store');
-      return { token, expiresAt, launchFragment: `#session=${token}` };
+      return {
+        token,
+        expiresAt,
+        startsAt,
+        endsAt,
+        launchFragment: `#session=${token}`,
+        launchPath: `/waiting#session=${token}`,
+      };
     },
   );
   app.get('/api/session', async (request, reply) => {
@@ -134,6 +188,9 @@ export function createApp(options: ServerOptions = {}) {
       gameId: s.game_id,
       arm: s.arm,
       expiresAt: s.expires_at,
+      startsAt: s.starts_at,
+      endsAt: s.ends_at,
+      serverTime: now(),
     };
   });
   app.post<{
@@ -185,6 +242,17 @@ export function createApp(options: ServerOptions = {}) {
       const session = authorize(request.headers.authorization);
       if (!session) return reply.code(401).send({ error: 'Session expired or invalid' });
       const b = request.body;
+      if (session.starts_at !== null && session.ends_at !== null) {
+        const generatedAt = Date.parse(b.timestamp_generation);
+        if (
+          now() < session.starts_at ||
+          now() >= session.ends_at ||
+          generatedAt < session.starts_at ||
+          generatedAt >= session.ends_at ||
+          generatedAt > now() + 5000
+        )
+          return reply.code(403).send({ error: 'Decision outside the game slot' });
+      }
       if (
         !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(b.timestamp_generation) ||
         !Number.isFinite(Date.parse(b.timestamp_generation))
@@ -198,7 +266,8 @@ export function createApp(options: ServerOptions = {}) {
       )
         return reply.code(400).send({ error: 'Invalid calendar timestamp' });
       const arm = arms[session.arm];
-      if (!arm) return reply.code(503).send({ error: 'Arm unavailable' });
+      if (!arm || (session.endpoint && session.endpoint !== arm.url))
+        return reply.code(503).send({ error: 'Arm unavailable or endpoint changed' });
       const metadata = Object.fromEntries(
         Object.entries(b.metadata).sort(([a], [b]) => a.localeCompare(b)),
       );
@@ -274,6 +343,12 @@ export function createApp(options: ServerOptions = {}) {
           .prepare('SELECT * FROM sessions WHERE id = ?')
           .get(row.session_id) as unknown as SessionRow;
         const arm = arms[s.arm];
+        if (s.ends_at !== null && now() >= s.ends_at) {
+          db.prepare("UPDATE choices SET status='blocked',last_error='Slot ended' WHERE id=?").run(
+            row.id,
+          );
+          continue;
+        }
         if (!arm) continue;
         if (row.endpoint !== arm.url) {
           db.prepare(
@@ -347,7 +422,11 @@ export function createApp(options: ServerOptions = {}) {
     while (draining) await new Promise((resolve) => setTimeout(resolve, 20));
     db.close();
   });
-  if (options.distPath && existsSync(options.distPath))
+  if (options.distPath && existsSync(options.distPath)) {
     void app.register(fastifyStatic, { root: resolve(options.distPath), maxAge: '1h' });
+    app.get('/waiting', async (_request, reply) =>
+      reply.header('Cache-Control', 'no-store').sendFile('index.html', { maxAge: 0 }),
+    );
+  }
   return { app, drain };
 }

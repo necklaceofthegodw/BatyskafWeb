@@ -97,6 +97,7 @@ export class Interface {
     return `<button class="button ${primary ? 'primary' : 'secondary'}" data-action="${action}">${label}<span>↗</span></button>`;
   }
   private handle(action: string) {
+    if (this.portal.slotState !== 'active') return;
     const g = this.game;
     if (action === 'rest') {
       g.start();
@@ -195,18 +196,52 @@ export class Interface {
       this.notices.push({ text: e.text, tone: e.tone || 'info', until: performance.now() + 4300 });
   }
   refresh() {
-    if (this.menuReady && this.game.phase === 'menu' && !this.popup && !document.hidden) {
+    const slot = this.portal.slotState;
+    if (
+      this.menuReady &&
+      slot === 'active' &&
+      this.portal.session?.startsAt != null &&
+      this.game.phase === 'menu'
+    ) {
+      this.popup = '';
+      this.game.start();
+    }
+    if (
+      this.menuReady &&
+      slot === 'active' &&
+      this.game.phase === 'menu' &&
+      !this.popup &&
+      !document.hidden
+    ) {
       this.menuStartAt ??= performance.now() + 5000;
     } else this.menuStartAt = null;
     const g = this.game,
-      signature = `${g.phase}/${this.popup}/${g.save.money}/${Object.values(g.save.upgrades).join()}`;
-    this.hud.hidden = this.popup !== '' || !['oasis', 'dive'].includes(g.phase);
+      seconds = Math.max(
+        0,
+        Math.ceil(
+          ((this.portal.session?.startsAt ?? this.portal.now()) - this.portal.now()) / 1000,
+        ),
+      ),
+      signature = `${slot}/${slot === 'waiting' ? seconds : ''}/${g.phase}/${this.popup}/${g.save.money}/${Object.values(g.save.upgrades).join()}`;
+    this.hud.hidden =
+      slot !== 'active' || this.popup !== '' || !['oasis', 'dive'].includes(g.phase);
     this.toastRoot.hidden = this.hud.hidden;
     if (signature === this.last) return;
     this.last = signature;
     const frame = (content: string, cls = '') =>
       `<div class="veil"><section class="panel ${cls}">${content}</section></div>`;
-    if (this.popup === 'settings') {
+    if (slot === 'waiting') {
+      this.overlay.innerHTML = frame(
+        `<span class="eyebrow">BATYSKAF · POCZEKALNIA</span><h2>Czekamy na rozpoczęcie gry</h2><p>Twój slot rozpocznie się automatycznie.</p><p role="timer" aria-live="off">Start za <strong>${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}</strong></p>`,
+        'slot-panel',
+      );
+    } else if (slot === 'ended') {
+      this.popup = '';
+      this.overlay.innerHTML = frame(
+        `<span class="eyebrow">SLOT ZAKOŃCZONY</span><h2>Dziękujemy za grę!</h2><p>Czas Twojej rozgrywki dobiegł końca.</p><p>Możesz zamknąć tę kartę i wrócić do portalu.</p>`,
+        'slot-panel',
+      );
+    } else if (this.popup === 'settings') {
       const s = g.save.settings;
       this.overlay.innerHTML = frame(
         `<span class="eyebrow">TWÓJ BATYSKAF</span><h2>Ustawienia</h2><p>Dostosuj obraz, dźwięk i sterowanie.</p><label class="setting">Głośność<input data-setting="volume" aria-label="Głośność" type="range" min="0" max="1" step=".05" value="${s.volume}"></label><label class="setting">Czułość myszy<input data-setting="sensitivity" aria-label="Czułość myszy" type="range" min=".2" max="2.5" step=".1" value="${s.sensitivity}"></label><label class="setting">Jakość obrazu<select data-setting="quality" aria-label="Jakość obrazu"><option value="high" ${s.quality === 'high' ? 'selected' : ''}>Wysoka</option><option value="low" ${s.quality === 'low' ? 'selected' : ''}>Oszczędna</option></select></label><label class="setting">Odwróć oś pionową myszy<input data-setting="invertY" type="checkbox" ${s.invertY ? 'checked' : ''}></label><div class="panel-actions">${this.button('back', 'Wróć')}${this.button('fullscreen', 'Pełny ekran')}</div>`,

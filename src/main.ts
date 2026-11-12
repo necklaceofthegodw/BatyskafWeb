@@ -20,6 +20,7 @@ async function main() {
   const save = await storage.load(),
     game = new GameCore(save),
     audio = new Audio();
+  game.clock = () => portal.now();
   const controls = new Controls(canvas, game, () => game.pause());
   const ui = new Interface(root, game, portal, storage, (action) => {
     if (action === 'capture') void controls.lock();
@@ -60,9 +61,14 @@ async function main() {
     const now = performance.now(),
       dt = Math.min((now - previous) / 1000, 0.1);
     previous = now;
+    if (portal.slotState !== 'active') {
+      game.pause();
+      controls.unlock();
+      accumulator = 0;
+    }
     accumulator += dt;
     while (accumulator >= 1 / 60) {
-      game.step(1 / 60, controls.state);
+      if (portal.slotState === 'active') game.step(1 / 60, controls.state);
       accumulator -= 1 / 60;
     }
     for (const event of game.events.splice(0)) {

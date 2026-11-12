@@ -6,7 +6,7 @@ const arms: Partial<Record<'alice' | 'bob', Arm>> = {};
 for (const name of ['alice', 'bob'] as const) {
   const prefix = `ARM_${name.toUpperCase()}`,
     url = process.env[`${prefix}_URL`],
-    apiKey = process.env[`${prefix}_API_KEY`];
+    apiKey = process.env[`${prefix}_API_KEY`] || process.env.ARM_API_KEY;
   if (url && apiKey) {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol))
